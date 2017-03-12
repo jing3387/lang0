@@ -10,14 +10,15 @@
   (:report (lambda (condition stream)
              (write-string (message condition) stream))))
 
-(defun comp (x env)
+(defun comp (x env fenv)
   (cond
     ((symbolp x) (comp-var x env))
     ((floatp x) (comp-float x))
     ((case (first x)
-       (DECLARE (comp-proto (second x) (third x) (fourth x) env))
-       (DEFUN (comp-function (second x) (third x) (rest (rest (rest x))) env))
-       (t (comp-call x env))))))
+       (FUNCTION (comp-fun (second x) fenv))
+       (DECLARE (comp-proto (second x) (third x) (fourth x) env fenv))
+       (DEFUN (comp-function (second x) (third x) (rest (rest (rest x))) env fenv))
+       (t (comp-call x env fenv))))))
 
 (defun comp-var (name env)
   (let ((var (gethash (string-downcase (string name)) env)))
@@ -29,21 +30,28 @@
 (defun comp-float (x)
   (llvm:const-real (llvm:double-type) x))
 
+(defun comp-fun (name fenv)
+  (let ((fun (gethash (string-downcase (string name)) fenv)))
+    (or fun
+        (progn
+          (llvm:dump-module *module*)
+          (error 'mml-error :message "unknown function name")))))
+
 (defun llvm-type (arg)
   (cond
-    ((symbolp arg) (case arg
-                     (byte (llvm:int8-type))
-                     (integer (llvm:int64-type))
-                     (float (llvm:double-type))
-                     (string (llvm:pointer-type (llvm:int8-type)))))
+    ((atom arg) (case arg
+                  (byte (llvm:int8-type))
+                  (integer (llvm:int64-type))
+                  (float (llvm:double-type))
+                  (string (llvm:pointer-type (llvm:int8-type)))))
     ((case (first arg)
        (LAMBDA (let ((arg-types (coerce (map 'list #'llvm-type (second arg)) 'vector))
                      (retty (llvm-type (third arg))))
                  (llvm:pointer-type (llvm:function-type retty arg-types))))))))
 
-(defun comp-proto (sym arg-types retty env)
+(defun comp-proto (sym arg-types retty env fenv)
   (let* ((name (string-downcase (string sym)))
-         (argtys (coerce (mapcar #'llvm-type arg-types) 'vector))
+         (argtys (coerce (map 'list #'llvm-type arg-types) 'vector))
          (f-type (llvm:function-type (llvm-type retty) argtys))
          (function (llvm:add-function *module* name f-type)))
     (when (not (string= (llvm:value-name function) name))
@@ -57,15 +65,15 @@
         (progn
           (llvm:dump-module *module*)
           (error 'mml-error :message "redefinition of function")))
-    (setf (gethash name env) function)
+    (setf (gethash name fenv) function)
     function))
 
-(defun comp-progn (xs env)
-  (cond ((= (length xs) 1) (comp (first xs) env))
-        (t (map nil #'(lambda (x) (comp x env))) xs)))
+(defun comp-progn (xs env fenv)
+  (cond ((= (length xs) 1) (comp (first xs) env fenv))
+        (t (last (map 'list #'(lambda (x) (comp x env fenv))) xs))))
 
-(defun comp-function (name args body env)
-  (let ((function (gethash (string-downcase (string name)) env)))
+(defun comp-function (name args body env fenv)
+  (let ((function (gethash (string-downcase (string name)) fenv)))
     (if function
         (progn
           (llvm:position-builder-at-end *builder*
@@ -76,7 +84,7 @@
                        (gethash (string-downcase (string name)) env) argument))
                (llvm:params function)
                args)
-          (let ((retval (comp-progn body env)))
+          (let ((retval (comp-progn body env fenv)))
             (if retval
                 (progn
                   (llvm:build-ret *builder* retval)
@@ -93,39 +101,66 @@
           (llvm:dump-module *module*)
           (error 'mml-error :message "no function declaration")))))
 
-(defun comp-call (x env)
-  (let ((callee (comp (first x) env))
+(defun comp-call (x env fenv)
+  (let ((callee-fenv (gethash (string-downcase (string (first x))) fenv))
         (args (rest x)))
-    (if callee
-        (if (= (llvm:count-params callee) (length args))
+    (if callee-fenv
+        (if (= (llvm:count-params callee-fenv) (length args))
             (llvm:build-call *builder*
-                             callee
-                             (map 'vector #'(lambda (x) (comp x env)) args)
-                             "calltmp")
+                             callee-fenv
+                             (map 'vector #'(lambda (x) (comp x env fenv)) args)
+                             "")
             (progn
               (llvm:dump-module *module*)
               (error 'mml-error :message "incorrect # arguments passed")))
+        (let ((callee-env (gethash (string-downcase (string (first x))) env)))
+          (if callee-env
+              (let* ((alloca (llvm:build-alloca *builder* (llvm:type-of callee-env) ""))
+                     (store (llvm:build-store *builder* callee-env alloca))
+                     (load (llvm:build-load *builder* alloca "")))
+                (llvm:build-call *builder*
+                                 load
+                                 (map 'vector #'(lambda (x) (comp x env fenv)) args)
+                                 ""))
+              (progn
+                (llvm:dump-module *module*)
+                (error 'mml-error :message "unknown function referenced")))))))
+
+(defun comp-top-level-proto (retty env fenv)
+  (let* ((name "")
+         (argtys #())
+         (f-type (llvm:function-type retty argtys))
+         (function (llvm:add-function *module* name f-type)))
+    (when (not (string= (llvm:value-name function) name))
+      (llvm:delete-function function)
+      (setf function (llvm:named-function *module* name)))
+    (if (= (llvm:count-basic-blocks function) 0)
+        (unless (= (llvm:count-params function) (length argtys))
+          (progn
+            (llvm:dump-module *module*)
+            (error 'mml-error :message "redefinition of function with different # args")))
         (progn
           (llvm:dump-module *module*)
-          (error 'mml-error :message "unknown function referenced")))))
+          (error 'mml-error :message "redefinition of function")))
+    (setf (gethash name fenv) function)
+    function))
 
-(defun comp-top-level-expr (x env)
-  (let ((function (comp-proto "" 'float '() env)))
-    (when function
-      (llvm:position-builder-at-end *builder*
-                                    (llvm:append-basic-block function "entry"))
-      (let ((retval (comp x env)))
-        (if retval
-            (progn
-              (llvm:build-ret *builder* retval)
-              (unless (llvm:verify-function function)
-                (llvm:dump-module *module*)
-                (error 'mml-error :message "function verification failure"))
-              function)
-            (progn
+(defun comp-top-level-expr (x env fenv)
+  (let ((retval (comp x env fenv)))
+    (if retval
+        (let ((function (comp-top-level-proto (llvm:type-of retval) env fenv)))
+          (when function
+            (llvm:position-builder-at-end *builder*
+                                          (llvm:append-basic-block function "entry"))
+            (llvm:build-ret *builder* retval)
+            (unless (llvm:verify-function function)
               (llvm:dump-module *module*)
-              (error 'mml-error :message "failed to compile function body")
-              (llvm:delete-function function)))))))
+              (error 'mml-error :message "function verification failure"))
+            function))
+        (progn
+          (llvm:dump-module *module*)
+          (error 'mml-error :message "failed to compile function body")
+          (llvm:delete-function function)))))
 
 (defun compiler ()
   (llvm:with-objects ((*builder* llvm:builder)
@@ -137,23 +172,19 @@
     (llvm:add-gvn-pass *fpm*)
     (llvm:add-cfg-simplification-pass *fpm*)
     (llvm:initialize-function-pass-manager *fpm*)
-    (defvar *object-type* (llvm:struct-create-named (llvm:global-context) ""))
-    (llvm:struct-set-body *object-type*
-                          (vector (llvm:int-type 64)
-                                  (llvm:pointer-type (llvm:int-type 8))
-                                  (llvm:array-type *object-type* 2)))
-    (let ((env (make-hash-table :test #'equal)))
+    (let ((env (make-hash-table :test #'equal))
+          (fenv (make-hash-table :test #'equal)))
       (loop
         for x = (read) do
         (case (first x)
-          (DECLARE (comp x env))
-          (DEFUN (comp x env))
-          (t (let* ((code (comp-top-level-expr x env))
+          (DECLARE (comp x env fenv))
+          (DEFUN (comp x env fenv))
+          (t (let* ((code (comp-top-level-expr x env fenv))
                     (ptr (llvm:pointer-to-global *execution-engine* code)))
                (format *error-output* "==> ~f~%~%"
                        (if (cffi:pointer-eq ptr code)
-                           (llvm:generic-value-to-pointer
-                            *object-type*
+                           (llvm:generic-value-to-float
+                            (llvm:double-type)
                             (llvm:run-function *execution-engine* ptr ()))
                            (cffi:foreign-funcall-pointer ptr () :double))))))
             (llvm:dump-module *module*)))))
