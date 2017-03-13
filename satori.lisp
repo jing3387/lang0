@@ -1,4 +1,4 @@
-(in-package #:mml)
+(in-package #:satori)
 
 (defvar *builder*)
 (defvar *module*)
@@ -211,4 +211,5 @@
                                  (llvm:run-function *execution-engine* ptr ()))
                                 (cffi:foreign-funcall-pointer ptr
                                                               ()
-                                                              :double)))))))))))))
+                                                              :double)))
+                    (llvm:dump-module *module*)))))))))))
