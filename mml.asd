@@ -1,5 +1,3 @@
-;;;; mml.asd
-
 (asdf:defsystem #:mml
   :description "Describe mml here"
   :author "Your Name <your.name@example.com>"
@@ -8,4 +6,3 @@
   :serial t
   :components ((:file "package")
                (:file "mml")))
-
