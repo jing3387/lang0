@@ -18,7 +18,8 @@
     ((case (first x)
        (FUNCTION (comp-funptr (second x) fenv))
        (DECLARE (comp-prototype (second x) (third x) (fourth x) fenv))
-       (DEFUN (comp-function (second x) (third x) (rest (rest (rest x))) env fenv))
+       (DEFUN (comp-function (second x) (third x) (rest (rest x)) env fenv))
+       (LAMBDA (comp-lambda (second x) (rest (rest (rest x))) env fenv))
        (t (comp-call x env fenv))))))
 
 (defun comp-var (name env)
@@ -109,33 +110,82 @@
           (llvm:dump-module *module*)
           (error 'mml-error :message "no function declaration")))))
 
+(defun comp-lambda (args body env fenv)
+  (llvm:with-objects ((*builder* llvm:builder))
+    (let* ((argtys (make-array (length args) :initial-element (llvm:double-type)))
+           (f-type (llvm:function-type (llvm:double-type) argtys))
+           (function (llvm:add-function *module* "" f-type)))
+      (if (= (llvm:count-basic-blocks function) 0)
+          (unless (= (llvm:count-params function) (length argtys))
+            (progn
+              (llvm:dump-module *module*)
+              (error 'mml-error
+                     :message "redefinition of function with different # args")))
+          (progn
+            (llvm:dump-module *module*)
+            (error 'mml-error :message "redefinition of function")))
+      (llvm:position-builder-at-end *builder*
+                                    (llvm:append-basic-block function "entry"))
+      (map nil
+           (lambda (argument name)
+             (setf (llvm:value-name argument) (string-downcase (string name))
+                   (gethash (string-downcase (string name)) env) argument))
+           (llvm:params function)
+           args)
+      (let ((retval (comp-progn body env fenv)))
+        (if retval
+            (progn
+              (llvm:build-ret *builder* retval)
+              (unless (llvm:verify-function function)
+                (llvm:dump-module *module*)
+                (error 'mml-error :message "function verification failure"))
+              (llvm:run-function-pass-manager *fpm* function)
+              function)
+            (progn
+              (llvm:dump-module *module*)
+              (llvm:delete-function function)
+              (error 'mml-error :message "failed to compile function body")))))))
+
 (defun alloca-store-load (llvm-val)
   (let ((alloca (llvm:build-alloca *builder* (llvm:type-of llvm-val) "")))
     (llvm:build-store *builder* llvm-val alloca)
     (llvm:build-load *builder* alloca "")))
 
 (defun comp-call (x env fenv)
-  (let ((callee-fenv (gethash (string-downcase (string (first x))) fenv))
-        (args (rest x)))
-    (if callee-fenv
-        (if (= (llvm:count-params callee-fenv) (length args))
-            (llvm:build-call *builder*
-                             callee-fenv
-                             (map 'vector #'(lambda (x) (comp x env fenv)) args)
-                             "")
-            (progn
-              (llvm:dump-module *module*)
-              (error 'mml-error :message "incorrect # arguments passed")))
-        (let ((callee-env (gethash (string-downcase (string (first x))) env)))
-          (if callee-env
-              (let ((callee (alloca-store-load callee-env)))
+  (if (symbolp x)
+      (let ((callee-fenv (gethash (string-downcase (string (first x))) fenv))
+            (args (rest x)))
+        (if callee-fenv
+            (if (= (llvm:count-params callee-fenv) (length args))
                 (llvm:build-call *builder*
-                                 callee
+                                 callee-fenv
                                  (map 'vector #'(lambda (x) (comp x env fenv)) args)
-                                 ""))
-              (progn
-                (llvm:dump-module *module*)
-                (error 'mml-error :message "unknown function referenced")))))))
+                                 "")
+                (progn
+                  (llvm:dump-module *module*)
+                  (error 'mml-error :message "incorrect # arguments passed")))
+            (let ((callee-env (gethash (string-downcase (string (first x))) env)))
+              (if callee-env
+                  (let ((callee (alloca-store-load callee-env)))
+                    (llvm:build-call *builder*
+                                     callee
+                                     (map 'vector
+                                          #'(lambda (x) (comp x env fenv))
+                                          args)
+                                     ""))
+                  (progn
+                    (llvm:dump-module *module*)
+                    (error 'mml-error :message "unknown function referenced"))))))
+      (let ((function (comp-lambda (second (first x))
+                                   (rest (rest (first x)))
+                                   env
+                                   fenv))
+            (args (rest x)))
+        (if (= (llvm:count-params function) (length args))
+            (llvm:build-call *builder*
+                             function
+                             (map 'vector #'(lambda (x) (comp x env fenv)) args)
+                             "")))))
 
 (defun comp-top-level-prototype (retty fenv)
   (let* ((name "")
