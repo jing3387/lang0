@@ -103,7 +103,7 @@
             (map 'list #'(lambda (x) (substitute sub x)) `(,f . ,args))))))))
 
 (defun transform-bottom-up (f x)
-  (defun transform (x**) (transform-bottom-up f x**))
+  (defun transform (x*) (transform-bottom-up f x*))
   (let ((x* (cond
               ((symbolp x) x)
               ((case (first x)
@@ -128,7 +128,7 @@
                                   `(apply-closure ,(transform f)
                                                   ,@(map 'list #'transform args))))
                  (t (if (= (length x) 1)
-                        (first x)
+                        (transform (first x))
                         (let ((f (first x))
                               (args (rest x)))
                           `(,(transform f) ,@(map 'list #'transform args))))))))))
@@ -136,6 +136,12 @@
 
 (defun flat-closure-convert (x)
   (transform-bottom-up #'closure-convert x))
+
+(defun example ()
+  (flat-closure-convert '(lambda (f)
+                          (lambda (z)
+                            (lambda (x)
+                              (f x z a))))))
 
 (defvar *builder*)
 (defvar *module*)
