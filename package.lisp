@@ -1,3 +1,4 @@
 (defpackage #:satori
   (:use #:cl)
-  (:export #:compiler))
+  (:export #:compiler)
+  (:shadow #:substitute))
