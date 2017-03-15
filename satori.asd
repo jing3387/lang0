@@ -7,5 +7,5 @@
   :components ((:file "package")
                (:file "satori")
                (:file "utils")
-               (:file "closure-convert")
+               (:file "transform")
                (:file "compile")))
