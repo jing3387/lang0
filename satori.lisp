@@ -8,10 +8,13 @@
 (defun closure-convert (x)
   (cond
     ((symbolp x) x)
+    ((integerp x) x)
     ((case (first x)
-       (lambda (let* ((id (gensym))
-                      (params (cons id (second x)))
-                      (fv (free x))
+       (lambda (let* ((params (second x))
+                      (body (rest (rest x)))
+                      (id (gensym))
+                      (params* (cons id params))
+                      (fv (sort-symbols< (free x)))
                       (env (pairlis fv fv))
                       (idx 0)
                       (sub (map 'list
@@ -19,20 +22,18 @@
                                     (let ((sub `(,x . (env-ref ,id ,x ,idx))))
                                       (setf idx (1+ idx))
                                       sub))
-                                (sort-symbols< fv)))
-                      (body (substitute sub (rest (rest x)))))
-                 `(make-closure (lambda* ,params ,body)
+                                fv))
+                      (body* (substitute sub body)))
+                 `(make-closure (lambda* ,params* ,@body*)
                                 (make-env ,id ,@env))))
        (lambda* x)
        (make-closure x)
        (make-env x)
        (env-ref x)
        (apply-closure x)
-       (t (if (= (length x) 1)
-              (first x)
-              (let ((f (first x))
-                    (args (rest x)))
-                `(apply-closure ,f . ,args))))))))
+       (t (let ((f (first x))
+                (args (rest x)))
+            `(apply-closure ,f . ,args)))))))
 
 (defun flatten (structure)
   (cond
@@ -43,6 +44,7 @@
 (defun free (x)
   (cond
     ((symbolp x) (list x))
+    ((integerp x) '())
     ((case (first x)
        (lambda (let ((params (second x))
                      (body (rest (rest x))))
@@ -69,6 +71,7 @@
     ((symbolp x) (if (assoc x sub)
                      (cdr (assoc x sub))
                      x))
+    ((integerp x) x)
     ((case (first x)
        (lambda (let* ((params (second x))
                       (body (rest (rest x)))
@@ -116,23 +119,24 @@
   (defun transform (x*) (transform-bottom-up f x*))
   (let ((x* (cond
               ((symbolp x) x)
+              ((integerp x) x)
               ((case (first x)
                  (lambda (let ((params (second x))
                                (body (rest (rest x))))
-                           `(lambda ,params ,@(transform body))))
+                           `(lambda ,params ,@(map 'list #'transform body))))
                  (lambda* (let ((params (second x))
                                 (body (rest (rest x))))
-                            `(lambda* ,params ,@(transform body))))
+                            `(lambda* ,params ,@(map 'list #'transform body))))
                  (make-closure (let ((lam (second x))
                                      (env (third x)))
                                  `(make-closure ,(transform lam) ,(transform env))))
                  (make-env (let ((id (second x))
                                  (vs (map 'list #'car (rest (rest x))))
                                  (es (map 'list #'cdr (rest (rest x)))))
-                                 `(make-env ,id ,@(pairlis vs
-                                                           (map 'list
-                                                                #'transform
-                                                                es)))))
+                             `(make-env ,id ,@(pairlis vs
+                                                       (map 'list
+                                                            #'transform
+                                                            es)))))
                  (env-ref (let ((env (second x))
                                 (v (third x)))
                             `(env-ref ,(transform env) ,v)))
@@ -140,11 +144,9 @@
                                       (args (rest (rest x))))
                                   `(apply-closure ,(transform f)
                                                   ,@(map 'list #'transform args))))
-                 (t (if (= (length x) 1)
-                        (transform (first x))
-                        (let ((f (first x))
-                              (args (rest x)))
-                          `(,(transform f) ,@(map 'list #'transform args))))))))))
+                 (t (let ((f (first x))
+                          (args (rest x)))
+                      `(,(transform f) ,@(map 'list #'transform args)))))))))
     (funcall f x*)))
 
 (defun flat-closure-convert (x)
@@ -181,7 +183,8 @@
                       (idx (fourth x)))
                   (comp-env-ref e v idx)))
        (apply-closure (let ((f (second x))
-                            (args (rest (rest x))))))))))
+                            (args (rest (rest x))))
+                        (comp-apply-closure f args env)))))))
 
 (define-condition unable-to-allocate (error)
   ((argument :initarg :argument :reader argument))
@@ -277,7 +280,9 @@
             (progn
               (llvm:position-builder-at-end *builder*
                                             (llvm:append-basic-block function "entry"))
-              (setf (llvm:value-name (car (llvm:params function))) (string 'env))
+              (let ((env-param (car (llvm:params function))))
+                (setf (llvm:value-name (car (llvm:params function))) (string 'env))
+                (setf (gethash id *environment-parameters*) env-param))
               (map nil
                    #'(lambda (argument name)
                        (setf (llvm:value-name argument) (string name)
@@ -316,12 +321,45 @@
       (setf (gethash id *closure-environments*) ptr)
       ptr)))
 
+(defvar *environment-parameters*)
+
 (defun comp-env-ref (e v idx)
-  (let* ((cenv (gethash e *closure-environments*))
+  (let* ((env (gethash e *environment-parameters*))
          (indices (vector (llvm:const-int (llvm:int32-type) 0)
                           (llvm:const-int (llvm:int32-type) idx)))
-         (ptr (llvm:build-gep *builder* cenv indices "")))
+         (ptr (llvm:build-gep *builder* env indices "")))
     (llvm:build-load *builder* ptr (string v))))
+
+(define-condition incorrect-number-of-arguments (error)
+  ((expected :initarg :expected :reader expected)
+   (actual :initarg :actual :reader actual))
+  (:report (lambda (condition stream)
+             (format stream
+                     "incorrect number of arguments: expected ~a but got ~a"
+                     (expected condition)
+                     (actual condition)))))
+
+(defun comp-apply-closure (f args env)
+  (let* ((closure (comp f env))
+         (f-indices (vector (llvm:const-int (llvm:int32-type) 0)
+                            (llvm:const-int (llvm:int32-type) 0)))
+         (fptrptr (llvm:build-gep *builder* closure f-indices ""))
+         (fptr (llvm:build-load *builder* fptrptr ""))
+         (env-indices (vector (llvm:const-int (llvm:int32-type) 0)
+                              (llvm:const-int (llvm:int32-type) 1)))
+         (env-ptr (llvm:build-gep *builder* closure env-indices ""))
+         (env (llvm:build-load *builder* env-ptr "")))
+    (llvm:build-call *builder*
+                     fptr
+                     (concatenate 'vector
+                                  (vector env)
+                                  (map 'vector
+                                       #'(lambda (x)
+                                           (comp x env))
+                                       args))
+                     "")))
+
+
 
 (defun comp-main (x env)
   (llvm:with-objects ((*builder* llvm:builder))
@@ -350,6 +388,7 @@
   (llvm:with-objects ((*module* llvm:module "satori")
                       (*execution-engine* llvm:execution-engine *module*))
     (setf *closure-environments* (make-hash-table :test #'equal))
+    (setf *environment-parameters* (make-hash-table :test #'equal))
     (loop for x = (read) do
       (let* ((env (make-hash-table :test #'equal))
              (main (comp-main x env))
