@@ -1,5 +1,10 @@
 (in-package #:satori)
 
+(defun sort-symbols< (list)
+  (assert (every #'symbolp list))
+  (let ((strings (map 'list #'string list)))
+    (map 'list #'intern (sort strings #'string<))))
+
 (defun closure-convert (x)
   (cond
     ((symbolp x) x)
@@ -8,10 +13,13 @@
                       (params (cons id (second x)))
                       (fv (free x))
                       (env (pairlis fv fv))
+                      (idx 0)
                       (sub (map 'list
                                 #'(lambda (x)
-                                    `(,x . (env-ref ,id ,x)))
-                                fv))
+                                    (let ((sub `(,x . (env-ref ,id ,x ,idx))))
+                                      (setf idx (1+ idx))
+                                      sub))
+                                (sort-symbols< fv)))
                       (body (substitute sub (rest (rest x)))))
                  `(make-closure (lambda* ,params ,body)
                                 (make-env ,id ,@env))))
@@ -91,8 +99,9 @@
                                                          (substitute sub x))
                                                      es)))))
        (env-ref (let ((env (second x))
-                      (v (third x)))
-                  `(env-ref ,(substitute sub env) ,v)))
+                      (v (third x))
+                      (idx (fourth x)))
+                  `(env-ref ,(substitute sub env) ,v ,idx)))
        (apply-closure (let ((f (second x))
                             (args (rest (rest x))))
                         `(apply-closure ,@(map 'list
@@ -168,7 +177,9 @@
                        (es (map 'list #'cdr (rest (rest x)))))
                    (comp-make-env id vs es env)))
        (env-ref (let ((e (second x))
-                      (v (third x)))))
+                      (v (third x))
+                      (idx (fourth x)))
+                  (comp-env-ref e v idx)))
        (apply-closure (let ((f (second x))
                             (args (rest (rest x))))))))))
 
@@ -179,31 +190,43 @@
                      "unable to allocate memory for type ~a"
                      (argument condition)))))
 
+(define-condition satori-error (error)
+  ((message :initarg :message :reader message))
+  (:report (lambda (condition stream)
+             (format stream "~a" (message condition)))))
+
 (defun comp-make-closure (c-make-env clambda*)
-  (let* ((closure-type (llvm:struct-create-named (llvm:global-context) ""))
-         (element-types (vector (llvm:type-of clambda*) (llvm:type-of c-make-env) )))
-    (llvm:struct-set-body closure-type element-types)
-    (let* ((ptr (llvm:build-alloca *builder* closure-type ""))
-           (count 0))
-      (if ptr
-          (map nil
-               #'(lambda (x)
-                   (let* ((indices (vector (llvm:const-int (llvm:int32-type) 0)
-                                           (llvm:const-int (llvm:int32-type) count)))
-                          (var-ptr (llvm:build-gep *builder* ptr indices "")))
-                     (llvm:build-store *builder* x var-ptr)
-                     (setf count (1+ count))))
-               (list clambda* c-make-env))
-          (progn
-            (llvm:dump-module *module*)
-            (error 'unable-to-allocate-on-stack
-                   :argument (llvm:get-type-by-name *module* closure-type))))
-      closure-type)))
+  (if (and c-make-env clambda*)
+      (let* ((closure-type (llvm:struct-create-named (llvm:global-context) ""))
+             (element-types (vector (llvm:type-of clambda*) (llvm:type-of c-make-env))))
+        (llvm:struct-set-body closure-type element-types)
+        (let* ((ptr (llvm:build-alloca *builder* closure-type ""))
+               (idx 0))
+          (if ptr
+              (progn
+                (map nil
+                     #'(lambda (x)
+                         (let* ((indices (vector (llvm:const-int (llvm:int32-type)
+                                                                 0)
+                                                 (llvm:const-int (llvm:int32-type)
+                                                                 idx)))
+                                (var-ptr (llvm:build-gep *builder* ptr indices "")))
+                           (llvm:build-store *builder* x var-ptr)
+                           (setf idx (1+ idx))))
+                     (list clambda* c-make-env))
+                ptr)
+              (progn
+                (llvm:dump-module *module*)
+                (error 'unable-to-allocate-on-stack
+                       :argument (llvm:get-type-by-name *module* closure-type))))))
+      (progn
+        (llvm:dump-module *module*)
+        (error 'satori-error :message "unable to create closure"))))
 
 (define-condition unknown-variable-name (error)
   ((argument :initarg :argument :reader argument))
   (:report (lambda (condition stream)
-             (format stream "unknown variable name ~a" (argument condition)))))
+             (format stream "unknown variable ~a" (argument condition)))))
 
 (defun comp-var (sym env)
   (let* ((name (string sym))
@@ -244,7 +267,7 @@
         (error 'no-closure-environment :argument id))
       (let* ((param-types (concatenate
                            'vector
-                           (make-array 1 :initial-element cenv)
+                           (make-array 1 :initial-element (llvm:type-of cenv))
                            (make-array (length params)
                                        :initial-element (llvm:int32-type))))
              (name (string id))
@@ -278,20 +301,27 @@
   (let* ((name (string id))
          (env-type (llvm:struct-create-named (llvm:global-context) name)))
     (llvm:struct-set-body env-type
-                          (make-array (length es)
+                          (make-array (length vs)
                                       :initial-element (llvm:int32-type)))
     (let ((ptr (llvm:build-alloca *builder* env-type ""))
-          (count 0))
+          (idx 0))
       (map nil
            #'(lambda (x)
                (let* ((indices (vector (llvm:const-int (llvm:int32-type) 0)
-                                       (llvm:const-int (llvm:int32-type) count)))
+                                       (llvm:const-int (llvm:int32-type) idx)))
                       (var-ptr (llvm:build-gep *builder* ptr indices "")))
                  (llvm:build-store *builder* (comp x env) var-ptr)
-                 (setf count (1+ count))))
-           es)
-      (setf (gethash id *closure-environments*) env-type)
+                 (setf idx (1+ idx))))
+           (sort-symbols< vs))
+      (setf (gethash id *closure-environments*) ptr)
       ptr)))
+
+(defun comp-env-ref (e v idx)
+  (let* ((cenv (gethash e *closure-environments*))
+         (indices (vector (llvm:const-int (llvm:int32-type) 0)
+                          (llvm:const-int (llvm:int32-type) idx)))
+         (ptr (llvm:build-gep *builder* cenv indices "")))
+    (llvm:build-load *builder* ptr (string v))))
 
 (defun comp-main (x env)
   (llvm:with-objects ((*builder* llvm:builder))
