@@ -5,4 +5,7 @@
   :depends-on (#:llvm)
   :serial t
   :components ((:file "package")
-               (:file "satori")))
+               (:file "satori")
+               (:file "utils")
+               (:file "closure-convert")
+               (:file "compile")))
