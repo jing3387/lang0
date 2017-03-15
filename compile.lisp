@@ -18,9 +18,8 @@
                       (body (rest (rest x))))
                   (comp-lambda* id params body env)))
        (make-env (let ((id (second x))
-                       (vs (map 'list #'car (rest (rest x))))
-                       (es (map 'list #'cdr (rest (rest x)))))
-                   (comp-make-env id vs es env)))
+                       (vs (map 'list #'car (rest (rest x)))))
+                   (comp-make-env id vs env)))
        (env-ref (let ((e (second x))
                       (v (third x))
                       (idx (fourth x)))
@@ -29,7 +28,7 @@
                             (args (rest (rest x))))
                         (comp-apply-closure f args env)))))))
 
-(define-condition unable-to-allocate (error)
+(define-condition unable-to-allocate-memory (error)
   ((argument :initarg :argument :reader argument))
   (:report (lambda (condition stream)
              (format stream
@@ -63,7 +62,7 @@
                 ptr)
               (progn
                 (llvm:dump-module *module*)
-                (error 'unable-to-allocate-on-stack
+                (error 'unable-to-allocate-memory
                        :argument (llvm:get-type-by-name *module* closure-type))))))
       (progn
         (llvm:dump-module *module*)
@@ -145,7 +144,7 @@
               (llvm:dump-module *module*)
               (error 'failed-to-compile-function :argument id)))))))
 
-(defun comp-make-env (id vs es env)
+(defun comp-make-env (id vs env)
   (let* ((name (string id))
          (env-type (llvm:struct-create-named (llvm:global-context) name)))
     (llvm:struct-set-body env-type
