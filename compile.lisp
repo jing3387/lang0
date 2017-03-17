@@ -35,11 +35,6 @@
                      "unable to allocate memory for type ~a"
                      (argument condition)))))
 
-(define-condition satori-error (error)
-  ((message :initarg :message :reader message))
-  (:report (lambda (condition stream)
-             (format stream "~a" (message condition)))))
-
 (defun comp-make-closure (c-make-env clambda*)
   (if (and c-make-env clambda*)
       (let* ((closure-type (llvm:struct-create-named (llvm:global-context) ""))
@@ -67,11 +62,6 @@
       (progn
         (llvm:dump-module *module*)
         (error 'satori-error :message "unable to create closure"))))
-
-(define-condition unknown-variable-name (error)
-  ((argument :initarg :argument :reader argument))
-  (:report (lambda (condition stream)
-             (format stream "unknown variable ~a" (argument condition)))))
 
 (defun comp-var (sym env)
   (let* ((name (string sym))
@@ -102,7 +92,7 @@
 
 (defun comp-progn (xs env)
   (cond ((= (length xs) 1) (comp (first xs) env))
-        (t (last (map 'list #'(lambda (x) (comp x env)) xs) 0))))
+        (t (last (map 'list #'(lambda (x) (comp x env)) xs) 1))))
 
 (defun comp-lambda* (id params body env)
   (llvm:with-objects ((*builder* llvm:builder))
