@@ -1,5 +1,7 @@
 (in-package #:satori)
 
+;; See: http://www.cis.upenn.edu/~bcpierce/tapl/checkers/fullrecon/core.ml
+
 (defun recon (x ctx)
   (cond
     ((integerp x) '(integer ()))
@@ -7,7 +9,7 @@
                    `(,type ())))
     ((case (first x)
        (lambda (let* ((params (second x))
-                      (body (first (rest (rest x)))))
+                      (body (rest (rest x))))
                  (let* ((param-syms (alexandria:make-gensym-list (length params) "T"))
                         (param-types (map 'list
                                           #'list
@@ -15,7 +17,7 @@
                                                      :initial-element 'id)
                                           param-syms))
                         (ctx* (append (pairlis params param-types) ctx))
-                        (body-recon (recon body ctx*))
+                        (body-recon (recon-progn body ctx*))
                         (body-type (first body-recon))
                         (body-constr (second body-recon)))
                    `((lambda ,param-types ,body-type) ,body-constr))))
@@ -30,8 +32,11 @@
                  (type-ret `(id ,(gensym "T")))
                  (new-constr `((,type-f (lambda ,type-xs ,type-ret))))
                  (constr (concatenate 'list new-constr constr-f (flatten constr-xs))))
-            (format *error-output* "~a~%" constr)
             `(,type-ret ,constr)))))))
+
+(defun recon-progn (xs ctx)
+  (cond ((= (length xs) 1) (recon (first xs) ctx))
+        (t (first (last (map 'list #'(lambda (x) (recon x ctx)) xs) 1)))))
 
 (defun isval (ty)
   (cond
@@ -56,7 +61,6 @@
 
 (defun apply-subst (constr tyT)
   (reduce #'(lambda (tyS x)
-              (format *error-output* "~a~%~a~%" tyS x)
               (let ((tyX (second (first x)))
                     (tyC2 (second x)))
                 (subst-type tyX tyC2 tyS)))
@@ -120,7 +124,6 @@
                                                  `(,tyS1 ,tyT1))
                                              tyS1
                                              tyT1)))
-                          (format *error-output* "~a~%" type-1s)
                           (u `(,@type-1s (,tyS2 ,tyT2) ,@(rest constr))))))))
         (t (error 'satori-error :message "unsolvable constraints")))))
   (u constr))

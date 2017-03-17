@@ -142,31 +142,3 @@
 
 (defun flat-closure-convert (x)
   (transform-bottom-up #'closure-convert x))
-
-(defvar *example* '(lambda (f)
-                    (lambda (z)
-                      (lambda (x)
-                        (f x z a)))))
-
-(defun let-to-lambda (x)
-  (let ((vars (map 'list #'first (second x)))
-        (args (map 'list #'second (second x))))
-    `((lambda (,@vars) ,(third x)) ,@args)))
-
-(defun desugar (x)
-  (cond
-    ((integerp x) x)
-    ((symbolp x) x)
-    ((case (first x)
-       (lambda `(lambda ,(second x)
-                  ,@(desugar (rest (rest x)))))
-       (let (desugar (let-to-lambda x)))
-       (make-closure `(make-closure ,(desugar (second x))
-                                    ,(desugar (third x))))
-       (make-env `(make-env ,(second x)
-                            ,(pairlis (map 'list #'car (rest (rest x)))
-                                      (map 'list
-                                           #'desugar
-                                           (map 'list #'cdr (rest (rest x)))))))
-       (env-ref x)
-       (t (map 'list #'desugar x))))))

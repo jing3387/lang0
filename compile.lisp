@@ -92,7 +92,7 @@
 
 (defun comp-progn (xs env)
   (cond ((= (length xs) 1) (comp (first xs) env))
-        (t (last (map 'list #'(lambda (x) (comp x env)) xs) 1))))
+        (t (first (last (map 'list #'(lambda (x) (comp x env)) xs) 1)))))
 
 (defun comp-lambda* (id params body env)
   (llvm:with-objects ((*builder* llvm:builder))
