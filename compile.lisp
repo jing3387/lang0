@@ -190,7 +190,8 @@
                      (actual condition)))))
 
 (defun comp-apply-closure (f args env)
-  (let* ((closure (comp f env))
+  (let* ((cargs (map 'vector #'(lambda (x) (comp x env)) args))
+         (closure (comp f env))
          (f-indices (vector (llvm:const-int (llvm:int32-type) 0)
                             (llvm:const-int (llvm:int32-type) 0)))
          (fptrptr (llvm:build-gep *builder* closure f-indices ""))
@@ -199,15 +200,7 @@
                               (llvm:const-int (llvm:int32-type) 1)))
          (env-ptr (llvm:build-gep *builder* closure env-indices ""))
          (env (llvm:build-load *builder* env-ptr "")))
-    (llvm:build-call *builder*
-                     fptr
-                     (concatenate 'vector
-                                  (vector env)
-                                  (map 'vector
-                                       #'(lambda (x)
-                                           (comp x env))
-                                       args))
-                     "")))
+    (llvm:build-call *builder* fptr (concatenate 'vector (vector env) cargs)) ""))
 
 (defun comp-in-main (x env)
   (let ((code (comp x env)))
