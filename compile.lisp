@@ -200,7 +200,7 @@
            (function (llvm:add-function *module* name ftype)))
       (llvm:position-builder-at-end *builder*
                                     (llvm:append-basic-block function "entry"))
-      (let ((code (comp (flat-closure-convert x) env))
+      (let ((code (comp x env))
             (retval (comp 0 env)))
         (if (and code retval)
             (progn
