@@ -209,23 +209,9 @@
                                        args))
                      "")))
 
-(defun comp-main (x env)
-  (llvm:with-objects ((*builder* llvm:builder))
-    (let* ((id (gensym))
-           (param-types (make-array 0))
-           (ftype (llvm:function-type (llvm:int32-type) param-types))
-           (name (string id))
-           (function (llvm:add-function *module* name ftype)))
-      (llvm:position-builder-at-end *builder*
-                                    (llvm:append-basic-block function "entry"))
-      (let ((code (comp x env))
-            (retval (comp 0 env)))
-        (if (and code retval)
-            (progn
-              (llvm:build-ret *builder* retval)
-              function)
-            (progn
-              (llvm:dump-module *module*)
-              (llvm:delete-function function)
-              (error 'failed-to-compile-function
-                     :argument (llvm:value-name function))))))))
+(defun comp-in-main (x env)
+  (let ((code (comp x env)))
+    (or code
+        (progn
+          (llvm:dump-module *module*)
+          (error 'failed-to-compile-function :argument (llvm:value-name code))))))
