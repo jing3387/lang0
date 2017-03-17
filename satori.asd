@@ -7,6 +7,6 @@
   :components ((:file "package")
                (:file "satori")
                (:file "utils")
-               (:file "transform")
+               (:file "closure")
                (:file "compile")
                (:file "types")))

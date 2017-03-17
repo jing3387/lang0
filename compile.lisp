@@ -26,7 +26,16 @@
                   (comp-env-ref e v idx)))
        (apply-closure (let ((f (second x))
                             (args (rest (rest x))))
-                        (comp-apply-closure f args env)))))))
+                        (comp-apply-closure f args env)))
+       (let* (let ((bindings (second x))
+                   (body (rest (rest x))))
+               (map nil
+                    #'(lambda (x)
+                        (let ((var (first x))
+                              (exp (second x)))
+                          (comp-binding var exp env)))
+                    bindings)
+               (comp-progn body env)))))))
 
 (define-condition unable-to-allocate-memory (error)
   ((argument :initarg :argument :reader argument))
@@ -34,6 +43,15 @@
              (format stream
                      "unable to allocate memory for type ~a"
                      (argument condition)))))
+
+(defun comp-binding (var exp env)
+  (let* ((alloca (llvm:build-alloca *builder* (llvm:int32-type) ""))
+         (indices (vector (llvm:const-int (llvm:int32-type) 0)))
+         (ptr (llvm:build-gep *builder* alloca indices ""))
+         (code (comp exp env)))
+    (llvm:build-store *builder* code ptr)
+    (let ((load (llvm:build-load *builder* ptr (string var))))
+      (setf (gethash (string var) env) load))))
 
 (defun comp-make-closure (c-make-env clambda*)
   (if (and c-make-env clambda*)
