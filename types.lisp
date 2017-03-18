@@ -4,9 +4,9 @@
 
 (defun recon (x ctx)
   (cond
-    ((integerp x) `(<integer> () (,x <integer>)))
+    ((integerp x) `(<integer> () (<integer> ,x)))
     ((symbolp x) (let ((type (flatten (rest (assoc x ctx)))))
-                   `(,type () (,x ,type))))
+                   `(,type () (variable ,x ,type))))
     ((case (first x)
        (lambda (let ((params (second x))
                      (body (rest (rest x))))
@@ -26,7 +26,7 @@
                         (body-constr (second body-last))
                         (params* (map 'list
                                       #'(lambda (param type)
-                                          `(,param ,type))
+                                          `(variable ,param ,type))
                                       params
                                       param-types))
                         (body* (map 'list #'third body-recon)))
@@ -44,30 +44,35 @@
                              exps))
                    (body* (substitute* sub body))
                    (binding-constr '())
-                   (ctx1 (map 'list
-                              #'(lambda (var exp)
-                                  (let* ((recon1 (recon exp ctx))
-                                         (exp-type (first recon1))
-                                         (constr1 (second recon1)))
-                                    (setf binding-constr (cons constr1 binding-constr))
-                                    `(,var ,exp-type)))
-                              vars
-                              exps))
-                   (ctx* (append ctx1 ctx))
-                   (recon2 (map 'list
-                                #'(lambda (x)
-                                    (recon x ctx*))
-                                body*))
+                   (annotated-bindings '())
+                   (ctx1 (reverse
+                          (reduce
+                           #'(lambda (binding ctx)
+                               (let* ((var (car binding))
+                                      (exp (cdr binding))
+                                      (recon1 (recon exp ctx))
+                                      (exp-type (first recon1))
+                                      (constr1 (second recon1))
+                                      (exp* (third recon1)))
+                                 (format *error-output* "~a ~a ~a~%" var exp exp*)
+                                 (if (not (isval exp*))
+                                     (progn
+                                       (setf annotated-bindings
+                                             `(((variable ,var ,exp-type) ,exp*)
+                                               . ,annotated-bindings))
+                                       (setf binding-constr `(,constr1
+                                                              . ,binding-constr))
+                                       `((,var ,exp-type) . ,ctx))
+                                     ctx)))
+                           (pairlis vars exps)
+                           :initial-value ctx
+                           :from-end t)))
+                   (annotated-bindings* (reverse annotated-bindings))
+                   (ctx* (remove nil ctx1))
+                   (recon2 (map 'list #'(lambda (x) (recon x ctx*)) body*))
                    (body-last (first (last recon2)))
                    (body-type (first body-last))
                    (body-constr (second body-last))
-                   (annotated-bindings (map 'list
-                                            #'(lambda (var exp)
-                                                (when (not (isval exp))
-                                                  `(,var ,(third (recon exp ctx)))))
-                                            ctx1
-                                            exps))
-                   (annotated-bindings* (remove nil annotated-bindings :test #'equal))
                    (annotated-body (map 'list #'third recon2)))
               (if annotated-bindings*
                   `(,body-type
@@ -75,7 +80,7 @@
                     (let ,annotated-bindings* ,@annotated-body))
                   `(,body-type
                     ,(append binding-constr body-constr)
-                    ,@annotated-body))))
+                    ,annotated-body))))
        (t (let* ((f (first x))
                  (xs (rest x))
                  (recon-f (recon f ctx))
@@ -197,3 +202,5 @@
 
 
 (defvar *example1* '((lambda (x) (let ((f (lambda (x) x)) (y x)) (f y))) 1))
+
+(defvar *example2* '((lambda (x) (let ((y x) (z y)) z)) 1))
