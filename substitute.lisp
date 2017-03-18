@@ -72,3 +72,38 @@
        (t (let ((f (first x))
                 (args (rest x)))
             (map 'list #'(lambda (x) (substitute* sub x)) `(,f . ,args))))))))
+
+
+(defun substitute-type (x constr)
+  (cond
+    ((equal (second x) '<integer>) x)
+    ((case (first (second x))
+       (id (let ((type (second (assoc (second x) constr :test #'equal))))
+             (if type
+                 `(,(first x) ,type)
+                 x)))))
+    ((case (first x)
+       (lambda (let* ((params (second x))
+                      (body (rest (rest x)))
+                      (params* (map 'list
+                                    #'(lambda (x)
+                                        (substitute-type x constr))
+                                    params))
+                      (body* (map 'list
+                                  #'(lambda (x)
+                                      (substitute-type x constr))
+                                  body)))
+                 `(lambda ,params* ,@body*)))
+       (let (let* ((vars (map 'list #'first (second x)))
+                   (exps (map 'list #'second (second x)))
+                   (body (rest (rest x)))
+                   (vars* (map 'list #'(lambda (x) (substitute-type x constr)) vars))
+                   (exps* (map 'list #'(lambda (x) (substitute-type x constr)) exps))
+                   (bindings (map 'list #'(lambda (var exp) `(,var ,exp)) vars* exps*))
+                   (body* (map 'list #'(lambda (x) (substitute-type x constr)) body)))
+              `(let ,bindings ,@body*)))
+       (t (let* ((f (first x))
+                 (args (rest x))
+                 (f* (substitute-type f constr))
+                 (args* (map 'list #'(lambda (x) (substitute-type x constr)) args)))
+            `(,f* ,@args*)))))))

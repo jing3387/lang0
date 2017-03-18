@@ -1,7 +1,7 @@
 (in-package #:satori)
 
 (defun compiler ()
-  (llvm:with-objects ((*module* llvm:module "unknown.sat")
+  (llvm:with-objects ((*module* llvm:module "<unknown>")
                       (*builder* llvm:builder))
     (setf *closure-environments* (make-hash-table :test #'equal))
     (setf *environment-parameters* (make-hash-table :test #'equal))

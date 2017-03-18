@@ -4,12 +4,12 @@
 
 (defun recon (x ctx)
   (cond
-    ((integerp x) '(integer ()))
-    ((symbolp x) (let ((type (cdr (assoc x ctx))))
-                   `(,type ())))
+    ((integerp x) `(<integer> () (,x <integer>)))
+    ((symbolp x) (let ((type (flatten (rest (assoc x ctx)))))
+                   `(,type () (,x ,type))))
     ((case (first x)
-       (lambda (let* ((params (second x))
-                      (body (rest (rest x))))
+       (lambda (let ((params (second x))
+                     (body (rest (rest x))))
                  (let* ((param-syms (alexandria:make-gensym-list (length params) "T"))
                         (param-types (map 'list
                                           #'list
@@ -19,8 +19,16 @@
                         (ctx* (append (pairlis params param-types) ctx))
                         (body-recon (recon-progn body ctx*))
                         (body-type (first body-recon))
-                        (body-constr (second body-recon)))
-                   `((lambda ,param-types ,body-type) ,body-constr))))
+                        (body-constr (second body-recon))
+                        (params* (map 'list
+                                      #'(lambda (param type)
+                                          `(,param ,type))
+                                      params
+                                      param-types))
+                        (body* (map 'list #'(lambda (x) (third (recon x ctx*))) body)))
+                   `((lambda ,param-types ,body-type)
+                     ,body-constr
+                     (lambda ,params* ,@body*)))))
        (let (let* ((vars (map 'list #'first (second x)))
                    (exps (map 'list #'second (second x)))
                    (body (rest (rest x)))
@@ -38,13 +46,25 @@
                                          (exp-type (first recon1))
                                          (constr1 (second recon1)))
                                     (setf binding-constr (cons constr1 binding-constr))
-                                    `(,var (id ,exp-type))))
+                                    `(,var ,exp-type)))
                               vars
-                              exps)))
-              (let* ((recon2 (recon-progn body* ctx1))
-                     (body-type (first recon2))
-                     (body-constr (second recon2)))
-                `(,body-type ,(append binding-constr body-constr)))))
+                              exps))
+                   (recon2 (recon-progn body* ctx1))
+                   (body-type (first recon2))
+                   (body-constr (second recon2))
+                   (annotated-bindings (map 'list
+                                            #'(lambda (var exp)
+                                                `(,var ,(third (recon exp ctx))))
+                                            ctx1
+                                            exps))
+                   (ctx* (append ctx1 ctx))
+                   (annotated-body (map 'list
+                                        #'(lambda (x)
+                                            (third (recon x ctx*)))
+                                        body*)))
+              `(,body-type
+                ,(append binding-constr body-constr)
+                (let ,annotated-bindings ,@annotated-body))))
        (t (let* ((f (first x))
                  (xs (rest x))
                  (recon-f (recon f ctx))
@@ -53,26 +73,29 @@
                  (type-xs (map 'list #'first recon-xs))
                  (constr-f (second recon-f))
                  (constr-xs (map 'list #'second recon-xs))
+                 (exp-f (third recon-f))
+                 (exp-xs (map 'list #'third recon-xs))
                  (type-ret `(id ,(gensym "T")))
                  (new-constr `((,type-f (lambda ,type-xs ,type-ret))))
                  (constr (concatenate 'list new-constr constr-f (flatten constr-xs))))
-            `(,type-ret ,constr)))))))
+            `(,type-ret ,constr (,exp-f ,@exp-xs))))))))
 
 (defun recon-progn (xs ctx)
   (cond ((= (length xs) 1) (recon (first xs) ctx))
         (t (first (last (map 'list #'(lambda (x) (recon x ctx)) xs) 1)))))
 
-(defun isval (ty)
+(defun isval (x)
   (cond
-    ((equal ty 'integer) t)
-    ((case (first ty)
-       (lambda t)))
+    ((integerp x) t)
+    ((and (listp x)
+          (case (first x)
+            (lambda t))))
     (t nil)))
 
 (defun subst-type (tyX tyT tyS)
   (defun f (tyS)
     (cond
-      ((equal tyS 'integer) 'integer)
+      ((equal tyS '<integer>) '<integer>)
       ((case (first tyS)
          (id (let ((s (second tyS)))
                (if (equal s tyX)
@@ -102,7 +125,7 @@
 (defun occurs-in (tyX tyT)
   (defun o (tyT)
     (cond
-      ((equal tyT 'integer) nil)
+      ((equal tyT '<integer>) nil)
       ((case (first tyT)
          (id (equal (second tyT) tyX))
          (f (let ((tyT1 (second tyT))
@@ -154,9 +177,7 @@
 
 (defun infer (x ctx constr)
   (let* ((recon (recon x ctx))
-         (tyT (first recon))
-         (constr* (second recon))
-         (constr** (append constr constr*))
-         (constr*** (unify constr**)))
-    (format *error-output* "~a~%" constr**)
-    (values (apply-subst constr*** tyT) constr***)))
+         (type (first recon))
+         (exp (third recon))
+         (constr* (unify (append constr (second recon)))))
+    `(,(apply-subst constr* type) ,constr* ,(substitute-type exp constr*))))
