@@ -78,7 +78,7 @@
   (cond
     ((null x) nil)
     ((equal (second x) '<integer>) x)
-    ((equal (second x) 'id)
+    ((equal (first x) 'id)
      (let ((type (second (assoc x constr :test #'equal))))
        (or type x)))
     ((case (first (second x))
