@@ -10,13 +10,13 @@
                        `(,type () (variable ,x ,type))
                        (error 'unknown-variable-name :argument x))))
     ((case (first x)
-       (lambda (let ((params (second x))
+       (lambda (let ((params `(,(gensym) . ,(second x)))
                      (body (rest (rest x))))
                  (let* ((param-syms (alexandria:make-gensym-list (length params) "T"))
                         (param-types (map 'list
                                           #'list
                                           (make-list (length param-syms)
-                                                     :initial-element 'id)
+                                                     :initial-element 'type-variable)
                                           param-syms))
                         (ctx* (append (pairlis params param-types) ctx))
                         (body-recon (map 'list
@@ -88,21 +88,16 @@
                  (recon-f (recon f ctx))
                  (recon-xs (map 'list #'(lambda (x) (recon x ctx)) xs))
                  (type-f (first recon-f))
-                 (type-xs (map 'list #'first recon-xs))
+                 (type-xs `((type-variable ,(gensym "T"))
+                            . ,(map 'list #'first recon-xs)))
                  (constr-f (second recon-f))
                  (constr-xs (map 'list #'second recon-xs))
                  (exp-f (third recon-f))
                  (exp-xs (map 'list #'third recon-xs))
-                 (type-ret `(id ,(gensym "T")))
+                 (type-ret `(type-variable ,(gensym "T")))
                  (new-constr `((,type-f (lambda ,type-xs ,type-ret))))
                  (constr (concatenate 'list new-constr constr-f constr-xs)))
             `(,type-ret ,constr (,exp-f ,@exp-xs))))))))
-
-(defun prune-paired-nils (list)
-  (let ((pair (first list)))
-    (if (and (null (first pair)) (null (second pair)))
-        (prune-paired-nils (rest list))
-        (cons pair (prune-paired-nils (rest list))))))
 
 (defun isval (x)
   (cond
@@ -117,10 +112,10 @@
     (cond
       ((equal tyS '<integer>) '<integer>)
       ((case (first tyS)
-         (id (let ((s (second tyS)))
+         (type-variable (let ((s (second tyS)))
                (if (equal s tyX)
                    tyT
-                   `(id ,s))))
+                   `(type-variable ,s))))
          (lambda (let ((tyS1 (second tyS))
                        (tyS2 (third tyS)))
                    `(lambda ,(map 'list #'f tyS1) ,(f tyS2))))))))
@@ -147,7 +142,7 @@
     (cond
       ((equal tyT '<integer>) nil)
       ((case (first tyT)
-         (id (equal (second tyT) tyX))
+         (type-variable (equal (second tyT) tyX))
          (f (let ((tyT1 (second tyT))
                   (tyT2 (third tyT)))
               (or (o tyT1) (o tyT2))))))))
@@ -162,24 +157,24 @@
         ((equal fst snd) (u (rest constr)))
         ((and (listp snd)
               (case (first snd)
-                (id (let ((tyS fst)
+                (type-variable (let ((tyS fst)
                           (tyX (second snd)))
                       (cond
-                        ((equal tyS `(id ,tyX)) (u (rest constr)))
+                        ((equal tyS `(type-variable ,tyX)) (u (rest constr)))
                         ((occurs-in tyX tyS)
                          (error 'satori-error :message "circular constraints"))
                         (t (append (u (subst-constr tyX tyS (rest constr)))
-                                   `(((id ,tyX) ,tyS))))))))))
+                                   `(((type-variable ,tyX) ,tyS))))))))))
         ((and (listp fst)
               (case (first fst)
-                (id (let ((tyX (second fst))
+                (type-variable (let ((tyX (second fst))
                           (tyT snd))
                       (cond
-                        ((equal tyT `(id ,tyX)) (u (rest constr)))
+                        ((equal tyT `(type-variable ,tyX)) (u (rest constr)))
                         ((occurs-in tyX tyT) (error 'satori-error
                                                     :message "circular constraints"))
                         (t (append (u (subst-constr tyX tyT (rest constr)))
-                                   `(((id ,tyX) ,tyT)))))))
+                                   `(((type-variable ,tyX) ,tyT)))))))
                 (lambda (let* ((f1 fst)
                                (f2 snd)
                                (tyS1 (second f1))
@@ -200,9 +195,15 @@
          (type (first recon))
          (exp (third recon))
          (constr* (unify (append constr (second recon)))))
-    `(,(apply-subst constr* type) ,constr* ,(substitute-type exp constr*))))
+    `(,(apply-subst constr* type) ,constr* ,(substitute-type
+                                             (substitute-type exp constr*)
+                                             constr))))
 
 
 (defvar *example1* '((lambda (x) (let ((f (lambda (x) x)) (y x)) (f y))) 1))
 
 (defvar *example2* '((lambda (x) (let ((y x) (z y)) z)) 1))
+
+(defvar *example3* '(lambda () x))
+
+(defvar *example4* '((lambda (f x) (f x)) (lambda (x) x) 1))
