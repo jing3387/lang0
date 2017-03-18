@@ -8,7 +8,7 @@
     ((integerp x) x)
     ((case (first x)
        (lambda (let* ((params (second x))
-                      (body (rest (rest x)))
+                      (body (rest (rest (rest x))))
                       (sub* (map 'list
                                  #'(lambda (x)
                                      (let ((k (car x)))
@@ -76,15 +76,31 @@
 
 (defun substitute-type (x constr)
   (cond
+    ((null x) nil)
     ((equal (second x) '<integer>) x)
+    ((equal (second x) 'id)
+     (let ((type (second (assoc x constr :test #'equal))))
+       (or type x)))
     ((case (first (second x))
        (id (let ((type (second (assoc (second x) constr :test #'equal))))
              (if type
                  `(,(first x) ,type)
-                 x)))))
+                 x)))
+       (lambda (let* ((type (second x))
+                      (params (second type))
+                      (params* (map 'list
+                                    #'(lambda (x)
+                                        (let ((type (second (assoc x
+                                                                   constr
+                                                                   :test #'equal))))
+                                          (or type x)))
+                                    params))
+                      (retty (second (assoc (third type) constr))))
+                 `(,(first x) (lambda ,params* ,retty))))))
     ((case (first x)
        (lambda (let* ((params (second x))
-                      (body (rest (rest x)))
+                      (retty (substitute-type (third x) constr))
+                      (body (rest (rest (rest x))))
                       (params* (map 'list
                                     #'(lambda (x)
                                         (substitute-type x constr))
@@ -93,7 +109,7 @@
                                   #'(lambda (x)
                                       (substitute-type x constr))
                                   body)))
-                 `(lambda ,params* ,@body*)))
+                 `(lambda ,params* ,retty ,@body*)))
        (let (let* ((vars (map 'list #'first (second x)))
                    (exps (map 'list #'second (second x)))
                    (body (rest (rest x)))
