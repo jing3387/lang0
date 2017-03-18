@@ -5,8 +5,10 @@
 (defun recon (x ctx)
   (cond
     ((integerp x) `(<integer> () (<integer> ,x)))
-    ((symbolp x) (let ((type (flatten (rest (assoc x ctx)))))
-                   `(,type () (variable ,x ,type))))
+    ((symbolp x) (let ((type (unwrap (flatten (rest (assoc x ctx))))))
+                   (if type
+                       `(,type () (variable ,x ,type))
+                       (error 'unknown-variable-name :argument x))))
     ((case (first x)
        (lambda (let ((params (second x))
                      (body (rest (rest x))))
@@ -54,11 +56,11 @@
                                       (exp-type (first recon1))
                                       (constr1 (second recon1))
                                       (exp* (third recon1)))
-                                 (format *error-output* "~a ~a ~a~%" var exp exp*)
                                  (if (not (isval exp*))
                                      (progn
                                        (setf annotated-bindings
-                                             `(((variable ,var ,exp-type) ,exp*)
+                                             `(((variable ,var ,exp-type)
+                                                ,exp*)
                                                . ,annotated-bindings))
                                        (setf binding-constr `(,constr1
                                                               . ,binding-constr))

@@ -77,28 +77,27 @@
 (defun substitute-type (x constr)
   (cond
     ((null x) nil)
+    ((not (listp x)) x)
     ((case (first x)
        (<integer> x)
-       (id (let ((type (second (assoc x constr :test #'equal))))
-             (or type x)))
+       (id (let ((type (assoc x constr :test #'equal)))
+             (or (second type) x)))
        (variable
-        (case (first (third x))
-          (lambda (let* ((type (second x))
-                         (params (second type))
-                         (params* (map 'list
-                                       #'(lambda (x)
-                                           (let ((type (second
-                                                        (assoc x
-                                                               constr
-                                                               :test #'equal))))
-                                             (or type x)))
-                                       params))
-                         (retty (second (assoc (third type) constr))))
-                    `(,(first x) (lambda ,params* ,retty))))
-          (t (let ((type (second (assoc (third x) constr :test #'equal))))
-               (if type
-                   `(variable ,(second x) ,type)
-                   x)))))
+        (cond
+          ((not (listp (third x))) x)
+          ((case (first (third x))
+             (lambda (let* ((type (second x))
+                            (params (second type))
+                            (params* (map 'list
+                                          #'(lambda (x)
+                                              (substitute-type x constr))
+                                          params))
+                            (retty (second (assoc (third type) constr))))
+                       `(,(first x) (lambda ,params* ,retty))))
+             (t (let ((type (assoc (third x) constr :test #'equal)))
+                  (if type
+                      `(variable ,(second x) ,(second type))
+                      x)))))))
        (lambda (let* ((params (second x))
                       (retty (substitute-type (third x) constr))
                       (body (rest (rest (rest x))))

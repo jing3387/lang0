@@ -38,3 +38,9 @@
   ((message :initarg :message :reader message))
   (:report (lambda (condition stream)
              (format stream "~a" (message condition)))))
+
+(defun unwrap (x)
+  (cond
+    ((not (listp x)) x)
+    ((and (= (length x) 1) (atom (first x))) (first x))
+    (t x)))
