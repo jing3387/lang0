@@ -208,12 +208,3 @@
          (exp (third recon))
          (constr* (unify (remove-nil (append constr (second recon))))))
     `(,(apply-subst constr* type) ,constr* ,(substitute-type exp constr*))))
-
-
-(defvar *example1* '((lambda (x) (let ((f (lambda (x) x)) (y x)) (f y))) 1))
-
-(defvar *example2* '((lambda (x) (let ((y x) (z y)) z)) 1))
-
-(defvar *example3* '(lambda () x))
-
-(defvar *example4* '((lambda (f x) (f x)) (lambda (x) x) 1))
