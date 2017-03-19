@@ -54,3 +54,12 @@
 
 (defun ir2 (x ctx)
   (flat-closure-convert (ir1 x ctx)))
+
+(defun find-anywhere-if (pred tree)
+  (cond ((funcall pred tree) tree)
+        ((atom tree) nil)
+        ((find-anywhere-if pred (first tree)))
+        ((find-anywhere-if pred (rest tree)))))
+
+(defun genericp (exp)
+  (find-anywhere-if #'(lambda (x) (eq x 'type-variable)) exp))

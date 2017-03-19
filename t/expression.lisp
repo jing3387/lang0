@@ -1,12 +1,16 @@
 (in-package #:satori-test)
 
-(plan 8)
+(plan 10)
 
 ;; Constant maps to a constant.
 (is (satori:execute 0) 0)
 
-;; The identity function; something is seriously wrong if this doesn't pass.
+;; The identity function.
 (is (satori:execute '((lambda (x) x) 0)) 0)
+
+;; Multiple arguments
+(is (satori:execute '((lambda (x y) x) 0 1)) 0)
+(is (satori:execute '((lambda (x y) y) 0 1)) 1)
 
 ;; Pass the identity function as an argument. This involves the unification of
 ;; environment variables for the function variable and function argument.

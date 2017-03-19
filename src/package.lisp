@@ -1,3 +1,3 @@
 (defpackage #:satori
   (:use #:cl)
-  (:export #:compiler #:jit #:execute))
+  (:export #:compiler #:repl #:execute))

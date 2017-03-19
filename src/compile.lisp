@@ -1,5 +1,8 @@
 (in-package #:satori)
 
+(defvar *global-environment*)
+(defvar *generics*)
+
 (defun comp (x env tenv)
   (cond
    ((symbolp x) (let ((var (second (assoc x env))))
@@ -48,7 +51,22 @@
                                       (type (llvm-type (third var) tenv)))
                                  `((,(second var) ,type) . ,tenv)))
                            bindings :initial-value tenv)))
-              (comp-progn body env* tenv*)))))))
+              (comp-progn body env* tenv*)))
+      (define* (let* ((var (second x))
+                      (exp (third x)))
+                 (comp-define var exp env tenv)))))))
+
+(defun comp-define (var exp env tenv)
+  (if (genericp exp)
+      (setf *generics* (acons (second var) exp *generics*))
+      (let ((cexp (comp exp env tenv)))
+        (when (llvm:constantp cexp)
+          (let ((global (llvm:add-global *module* (llvm-type (third var) tenv)
+                                         (string (second var)))))
+            (setf *global-environment* (acons (second var)
+                                              `(,global ,(third var))
+                                              *global-environment*))
+            (setf (llvm:initializer global) cexp))))))
 
 (defun comp-tenv (vars tenv)
   (let* ((var-types (map 'list
@@ -75,6 +93,7 @@
   (cond
    ((null ty) nil)
    ((eq ty 'i32) (llvm:int32-type))
+   ((eq ty 'void) (llvm:void-type))
    ((case (first ty)
       (structure (let* ((element-types (map 'list
                                             #'(lambda (x)
@@ -143,11 +162,13 @@
   (let ((name (second var)))
     (cond
      ((and (listp name) (eq (first name) 'env-ref)) (comp name env tenv))
-     (t (let ((var (second (assoc name env))))
-          (or var
-              (progn
-                (llvm:dump-module *module*)
-                (error 'unknown-variable-name :argument name))))))))
+     ((assoc name env) (second (assoc name env)))
+     ((assoc name *global-environment*)
+      (let ((global (first (cdr (assoc name *global-environment*)))))
+        (llvm:build-load *builder* global "")))
+     (t (progn
+          (llvm:dump-module *module*)
+          (error 'unknown-variable-name :argument name))))))
 
 (defun comp-int (x)
   (llvm:const-int (llvm:int32-type) (second x)))

@@ -5,10 +5,14 @@
 (defun recon (x ctx)
   (cond
     ((integerp x) `(i32 () (i32 ,x)))
-    ((symbolp x) (let ((type (unwrap (flatten (rest (assoc x ctx))))))
-                   (if type
-                       `(,type () (variable ,x ,type))
-                       (error 'unknown-variable-name :argument x))))
+    ((symbolp x) (cond
+                   ((assoc x ctx)
+                    (let ((type (unwrap (flatten (rest (assoc x ctx))))))
+                      `(,type () (variable ,x ,type))))
+                   ((assoc x *global-environment*)
+                    (let ((type* (second (cdr (assoc x *global-environment*)))))
+                      `(,type* () (variable ,x ,type*))))
+                   (t (error 'unknown-variable-name :argument x))))
     ((case (first x)
        (lambda (let ((params `(,(gensym) . ,(second x)))
                      (body (rest (rest x))))
@@ -86,6 +90,14 @@
               `(,body-type
                 ,(append binding-constr body-constr)
                 (let% ,annotated-bindings* ,body-type ,@annotated-body))))
+       (define (let* ((name (second x))
+                      (exp-recon (recon (third x) ctx))
+                      (exp-type (first exp-recon))
+                      (exp-constr (second exp-recon))
+                      (exp* (third exp-recon)))
+                 `(void
+                   ,exp-constr
+                   (define% (variable ,name ,exp-type) ,exp*))))
        (t (let* ((f (first x))
                  (xs (rest x))
                  (recon-f (recon f ctx))
