@@ -13,7 +13,7 @@
                          (llvm:run-function *execution-engine* ptr ()) t)
                         (cffi:foreign-funcall-pointer ptr () :int32)))))))
 
-(defun run-expression (x)
+(defun execute (x)
   (llvm:with-objects ((*module* llvm:module "<unknown>")
                       (*builder* llvm:builder)
                       (*execution-engine* llvm:execution-engine *module*))

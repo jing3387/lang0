@@ -90,7 +90,7 @@
                       `(lambda% ,params ,retty ,@(map 'list #'transform body))))
             (let% (let ((vars (map 'list #'first (second x)))
                         (exps (map 'list #'second (second x)))
-                        (body (rest (rest x))))
+                        (body (rest (rest (rest x)))))
                     `(let* ,(map 'list #'(lambda (var exp)
                                            `(,var ,(transform exp))) vars exps)
                        ,@(map 'list #'transform body))))

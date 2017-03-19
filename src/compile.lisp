@@ -67,10 +67,9 @@
                      (argument condition)))))
 
 (define-condition unknown-type (error)
-  ((ty :initarg :ty :reader ty)
-   (tenv :initarg :tenv :reader tenv))
+  ((ty :initarg :ty :reader ty))
   (:report (lambda (condition stream)
-             (format stream "unknown type ~a in ~a" (ty condition) (tenv condition)))))
+             (format stream "unknown type ~a" (ty condition)))))
 
 (defun llvm-type (ty tenv)
   (cond
@@ -100,9 +99,9 @@
                            (or ty**
                                (progn
                                  (llvm:dump-module *module*)
-                                 (error 'unknown-type :ty ty :tenv tenv)))))))))
+                                 (error 'unknown-type :ty ty)))))))))
    (t (llvm:dump-module *module*)
-      (error 'unknown-type :ty ty :tenv tenv))))
+      (error 'unknown-type :ty ty))))
 
 (defun comp-binding (var exp env tenv)
   (let* ((type (llvm-type (third var) tenv))

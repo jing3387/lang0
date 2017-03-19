@@ -83,13 +83,9 @@
                    (body-type (first body-last))
                    (body-constr (second body-last))
                    (annotated-body (map 'list #'third recon2)))
-              (if annotated-bindings*
-                  `(,body-type
-                    ,(append binding-constr body-constr)
-                    (let% ,annotated-bindings* ,@annotated-body))
-                  `(,body-type
-                    ,(append binding-constr body-constr)
-                    ,annotated-body))))
+              `(,body-type
+                ,(append binding-constr body-constr)
+                (let% ,annotated-bindings* ,body-type ,@annotated-body))))
        (t (let* ((f (first x))
                  (xs (rest x))
                  (recon-f (recon f ctx))
