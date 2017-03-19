@@ -4,7 +4,7 @@
 
 (defun recon (x ctx)
   (cond
-    ((integerp x) `(<integer> () (<integer> ,x)))
+    ((integerp x) `(i32 () (i32 ,x)))
     ((symbolp x) (let ((type (unwrap (flatten (rest (assoc x ctx))))))
                    (if type
                        `(,type () (variable ,x ,type))
@@ -114,7 +114,7 @@
 (defun subst-type (tyX tyT tyS)
   (defun f (tyS)
     (cond
-      ((equal tyS '<integer>) '<integer>)
+      ((equal tyS 'i32) 'i32)
       ((case (first tyS)
          (structure tyS)
          (type-variable (let ((s (second tyS)))
@@ -145,7 +145,7 @@
 (defun occurs-in (tyX tyT)
   (defun o (tyT)
     (cond
-      ((equal tyT '<integer>) nil)
+      ((equal tyT 'i32) nil)
       ((case (first tyT)
          (type-variable (equal (second tyT) tyX))
          (f (let ((tyT1 (second tyT))

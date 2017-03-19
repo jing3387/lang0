@@ -8,7 +8,7 @@
                         (llvm:dump-module *module*)
                         (error 'unknown-variable-name :argument x)))))
    ((case (first x)
-      (<integer> (comp-int x))
+      (i32 (comp-int x))
       (variable (comp-var x env tenv))
       (make-closure (let* ((lambda* (second x))
                            (make-env (third x))
@@ -74,7 +74,7 @@
 (defun llvm-type (ty tenv)
   (cond
    ((null ty) nil)
-   ((eq ty '<integer>) (llvm:int32-type))
+   ((eq ty 'i32) (llvm:int32-type))
    ((case (first ty)
       (structure (let* ((element-types (map 'list
                                             #'(lambda (x)

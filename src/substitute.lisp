@@ -81,7 +81,7 @@
     ((null x) nil)
     ((not (listp x)) x)
     ((case (first x)
-       (<integer> x)
+       (i32 x)
        (id (let ((type (assoc x constr :test #'equal)))
              (or (second type) x)))
        (variable

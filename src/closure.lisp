@@ -4,7 +4,7 @@
 
 (defun closure-convert (x)
   (case (first x)
-    (<integer> x)
+    (i32 x)
     (variable x)
     (lambda% (let* ((params (second x))
                     (env-var (first params))
@@ -46,7 +46,7 @@
                    (vars* (map 'list #'first vars))
                    (body (rest (rest x))))
               (set-difference (free body) vars*)))
-       (<integer> nil)
+       (i32 nil)
        (variable (list (free (second x))))
        (lambda% (let* ((params (second x))
                        (body (rest (rest (rest x))))
@@ -82,7 +82,7 @@
   (defun transform (x*) (transform-bottom-up f x*))
   (let ((x*
           (case (first x)
-            (<integer> x)
+            (i32 x)
             (variable x)
             (lambda% (let ((params (second x))
                           (retty (third x))
