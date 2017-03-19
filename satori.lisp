@@ -2,12 +2,12 @@
 
 (defvar *builder*)
 (defvar *module*)
+(defvar *environments*)
 
 (defun compiler ()
   (llvm:with-objects ((*module* llvm:module "<unknown>")
                       (*builder* llvm:builder))
-    (setf *closure-environments* (make-hash-table :test #'equal))
-    (setf *environment-parameters* (make-hash-table :test #'equal))
+    (setf *environments* (make-hash-table :test #'equal))
     (llvm:with-objects ((*builder* llvm:builder))
       (let* ((param-types (make-array 0))
              (ftype (llvm:function-type (llvm:int32-type) param-types))
@@ -18,11 +18,10 @@
           (loop for x = (read *standard-input* nil 'eof nil)
                 while (not (equal x 'eof)) do
                   (llvm:position-builder-before *builder* ret)
-                  (let* ((env (make-hash-table :test #'equal))
-                         (inference (infer x '() '()))
+                  (let* ((inference (infer x '() '()))
                          (tenv (second inference))
                          (ir1 (third inference))
                          (ir2 (flat-closure-convert ir1)))
-                    (comp-in-main ir2 env tenv)
+                    (comp-in-main ir2 '() tenv)
                     (llvm:dump-module *module*)
                     (llvm:verify-module *module*))))))))

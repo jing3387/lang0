@@ -44,3 +44,13 @@
     ((not (listp x)) x)
     ((and (= (length x) 1) (atom (first x))) (first x))
     (t x)))
+
+(defun remove-nil (x)
+  (cond ((listp x) (map 'list #'remove-nil (remove nil x)))
+        (t x)))
+
+(defun ir1 (x ctx)
+  (third (infer x ctx '())))
+
+(defun ir2 (x ctx)
+  (flat-closure-convert (ir1 x ctx)))

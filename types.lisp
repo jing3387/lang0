@@ -31,10 +31,17 @@
                                           `(variable ,param ,type))
                                       params
                                       param-types))
-                        (body* (map 'list #'third body-recon)))
+                        (body* (map 'list #'third body-recon))
+                        (free-vars (free x)))
                    `((lambda ,param-types ,body-type)
-                     ,body-constr
-                     (lambda ,params* ,body-type ,@body*)))))
+                     ((,(first param-types)
+                       (structure
+                        ,@(map 'list
+                               #'(lambda (fv)
+                                   (rest (assoc fv ctx*)))
+                               free-vars)))
+                      . ,body-constr)
+                     (lambda% ,params* ,body-type ,@body*)))))
        (let (let* ((vars (map 'list #'first (second x)))
                    (exps (map 'list #'second (second x)))
                    (body (rest (rest x)))
@@ -62,8 +69,8 @@
                                              `(((variable ,var ,exp-type)
                                                 ,exp*)
                                                . ,annotated-bindings))
-                                       (setf binding-constr `(,constr1
-                                                              . ,binding-constr))
+                                       (setf binding-constr
+                                             `(,constr1 . ,binding-constr))
                                        `((,var ,exp-type) . ,ctx))
                                      ctx)))
                            (pairlis vars exps)
@@ -79,7 +86,7 @@
               (if annotated-bindings*
                   `(,body-type
                     ,(append binding-constr body-constr)
-                    (let ,annotated-bindings* ,@annotated-body))
+                    (let% ,annotated-bindings* ,@annotated-body))
                   `(,body-type
                     ,(append binding-constr body-constr)
                     ,annotated-body))))
@@ -91,12 +98,12 @@
                  (type-xs `((type-variable ,(gensym "T"))
                             . ,(map 'list #'first recon-xs)))
                  (constr-f (second recon-f))
-                 (constr-xs (map 'list #'second recon-xs))
+                 (constr-xs (mappend #'second recon-xs))
                  (exp-f (third recon-f))
                  (exp-xs (map 'list #'third recon-xs))
                  (type-ret `(type-variable ,(gensym "T")))
                  (new-constr `((,type-f (lambda ,type-xs ,type-ret))))
-                 (constr (concatenate 'list new-constr constr-f constr-xs)))
+                 (constr (append new-constr constr-f constr-xs)))
             `(,type-ret ,constr (,exp-f ,@exp-xs))))))))
 
 (defun isval (x)
@@ -104,7 +111,8 @@
     ((integerp x) t)
     ((and (listp x)
           (case (first x)
-            (lambda t))))
+            (lambda t)
+            (lambda% t))))
     (t nil)))
 
 (defun subst-type (tyX tyT tyS)
@@ -112,6 +120,7 @@
     (cond
       ((equal tyS '<integer>) '<integer>)
       ((case (first tyS)
+         (structure tyS)
          (type-variable (let ((s (second tyS)))
                (if (equal s tyX)
                    tyT
@@ -157,36 +166,39 @@
         ((equal fst snd) (u (rest constr)))
         ((and (listp snd)
               (case (first snd)
-                (type-variable (let ((tyS fst)
-                          (tyX (second snd)))
-                      (cond
-                        ((equal tyS `(type-variable ,tyX)) (u (rest constr)))
-                        ((occurs-in tyX tyS)
-                         (error 'satori-error :message "circular constraints"))
-                        (t (append (u (subst-constr tyX tyS (rest constr)))
-                                   `(((type-variable ,tyX) ,tyS))))))))))
+                (type-variable
+                 (let ((tyS fst)
+                       (tyX (second snd)))
+                   (cond
+                     ((equal tyS `(type-variable ,tyX)) (u (rest constr)))
+                     ((occurs-in tyX tyS)
+                      (error 'satori-error :message "circular constraints"))
+                     (t (append (u (subst-constr tyX tyS (rest constr)))
+                                `(((type-variable ,tyX) ,tyS))))))))))
         ((and (listp fst)
               (case (first fst)
-                (type-variable (let ((tyX (second fst))
-                          (tyT snd))
-                      (cond
-                        ((equal tyT `(type-variable ,tyX)) (u (rest constr)))
-                        ((occurs-in tyX tyT) (error 'satori-error
-                                                    :message "circular constraints"))
-                        (t (append (u (subst-constr tyX tyT (rest constr)))
-                                   `(((type-variable ,tyX) ,tyT)))))))
-                (lambda (let* ((f1 fst)
-                               (f2 snd)
-                               (tyS1 (second f1))
-                               (tyS2 (third f1))
-                               (tyT1 (second f2))
-                               (tyT2 (third f2))
-                               (type-1s (map 'list
-                                             #'(lambda (tyS1 tyT1)
-                                                 `(,tyS1 ,tyT1))
-                                             tyS1
-                                             tyT1)))
-                          (u `(,@type-1s (,tyS2 ,tyT2) ,@(rest constr))))))))
+                (type-variable
+                 (let ((tyX (second fst))
+                       (tyT snd))
+                   (cond
+                     ((equal tyT `(type-variable ,tyX)) (u (rest constr)))
+                     ((occurs-in tyX tyT) (error 'satori-error
+                                                 :message "circular constraints"))
+                     (t (append (u (subst-constr tyX tyT (rest constr)))
+                                `(((type-variable ,tyX) ,tyT)))))))
+                (lambda
+                    (let* ((f1 fst)
+                           (f2 snd)
+                           (tyS1 (second f1))
+                           (tyS2 (third f1))
+                           (tyT1 (second f2))
+                           (tyT2 (third f2))
+                           (type-1s (map 'list
+                                         #'(lambda (tyS1 tyT1)
+                                             `(,tyS1 ,tyT1))
+                                         tyS1
+                                         tyT1)))
+                      (u `(,@type-1s (,tyS2 ,tyT2) ,@(rest constr))))))))
         (t (error 'satori-error :message "unsolvable constraints")))))
   (u constr))
 
@@ -194,10 +206,8 @@
   (let* ((recon (recon x ctx))
          (type (first recon))
          (exp (third recon))
-         (constr* (unify (append constr (second recon)))))
-    `(,(apply-subst constr* type) ,constr* ,(substitute-type
-                                             (substitute-type exp constr*)
-                                             constr))))
+         (constr* (unify (remove-nil (append constr (second recon))))))
+    `(,(apply-subst constr* type) ,constr* ,(substitute-type exp constr*))))
 
 
 (defvar *example1* '((lambda (x) (let ((f (lambda (x) x)) (y x)) (f y))) 1))
