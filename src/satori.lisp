@@ -4,6 +4,11 @@
 (defvar *module*)
 (defvar *execution-engine*)
 
+(define-condition satori-error (error)
+  ((message :initarg :message :reader message))
+  (:report (lambda (condition stream)
+             (format stream "~a" (message condition)))))
+
 (defun repl ()
   (llvm:with-objects ((*module* llvm:module "<unknown>")
                       (*builder* llvm:builder)
