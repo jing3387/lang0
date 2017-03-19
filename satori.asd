@@ -20,4 +20,5 @@
   :serial t
   :pathname "t/"
   :components ((:file "package")
-               (:file "expression")))
+               (:file "expression")
+               (:file "definition")))
