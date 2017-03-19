@@ -254,4 +254,4 @@
     (or code
         (progn
           (llvm:dump-module *module*)
-          (error 'failed-to-compile-function :argument (llvm:value-name code))))))
+          (error 'satori-error "failed to compile top-level expression")))))
