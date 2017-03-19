@@ -8,6 +8,7 @@
   :components ((:file "package")
                (:file "satori")
                (:file "utils")
+               (:file "eval")
                (:file "closure")
                (:file "compile")
                (:file "types")
@@ -19,4 +20,4 @@
   :serial t
   :pathname "t/"
   :components ((:file "package")
-               (:file "test")))
+               (:file "expression")))
