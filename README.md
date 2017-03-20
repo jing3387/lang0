@@ -6,7 +6,7 @@ extensible through a macro system. Currently the following special forms are
 planned:
 * `lambda`: the heart of the language ✓
 * `let`: since sequential local variables are easy to represent in LLVM ✓
-* `cond`: the basic conditional
+* `if`: the basic conditional
 * `eq`: for testing equality between atoms
 * `atom`: because `car` and `cdr` are defined for lists only
 * `define`: for recursion that doesn't rely on the Y-Combinator

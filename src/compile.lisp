@@ -58,23 +58,24 @@
                       (exp (third x)))
                  (comp-define var exp env tenv)))
       (if* (let* ((pred (second x))
-                  (true (third x))
-                  (false (fourth x)))
-             `(,(comp-if pred true false env tenv) nil nil)))))))
+                  (pred-type (third x))
+                  (body-type (fourth x))
+                  (true (fifth x))
+                  (false (sixth x)))
+             `(,(comp-if pred pred-type body-type true false env tenv) nil nil)))))))
 
 (defun comp-bool (x)
   (if x
       (llvm:const-int (llvm:int1-type) 1)
       (comp-null)))
 
-(defun comp-if (pred true false env tenv)
-  (let* ((cond* (comp-cond pred env tenv))
-         (ccond (first cond*)))
+(defun comp-if (pred pred-type body-type true false env tenv)
+  (let* ((cond* (comp-cond pred pred-type env tenv)))
     (let* ((function (llvm:basic-block-parent (llvm:insertion-block *builder*)))
            (then-bb (llvm:append-basic-block function ""))
            (else-bb (llvm:append-basic-block function ""))
            (merge-bb (llvm:append-basic-block function "")))
-      (llvm:build-cond-br *builder* ccond then-bb else-bb)
+      (llvm:build-cond-br *builder* cond* then-bb else-bb)
       (llvm:position-builder *builder* then-bb)
       (let ((then (comp true env tenv)))
         (llvm:build-br *builder* merge-bb)
@@ -84,17 +85,20 @@
           (llvm:build-br *builder* merge-bb)
           (setf else-bb (llvm:insertion-block *builder*))
           (llvm:position-builder *builder* merge-bb)
-          (let ((phi (llvm:build-phi *builder* (llvm:int32-type) "")))
+          (let ((phi (llvm:build-phi *builder* (llvm-type body-type tenv) "")))
             (llvm:add-incoming phi (list (first then) (first else)) (list then-bb else-bb))
             phi))))))
 
 (defun comp-null ()
   (llvm:const-int (llvm:int1-type) 0))
 
-(defun comp-cond (pred env tenv)
+(defun varp (x)
+  (and (listp x) (= (length x) 3) (eq (first x) 'variable)))
+
+(defun comp-cond (pred pred-type env tenv)
   (let* ((cpred (comp pred env tenv)))
-    `(,(llvm:build-i-cmp *builder* :/= (first cpred) (comp-int '(i32 0)) "")
-      (llvm:int32-type))))
+    (case (satori-type pred-type tenv)
+      (i32 (llvm:build-i-cmp *builder* :/= (first cpred) (comp-int '(i32 0)) "")))))
 
 (defun comp-define (var exp env tenv)
   (let ((name (second var))
@@ -128,11 +132,32 @@
   (:report (lambda (condition stream)
              (format stream "unknown type ~a" (ty condition)))))
 
+(defun satori-type (ty tenv)
+  (cond
+   ((null ty) nil)
+   ((eq ty 'void) ty)
+   ((eq ty 'i32) ty)
+   ((case (first ty)
+      (structure (let* ((element-types (map 'list
+                                            #'(lambda (x)
+                                                (satori-type x tenv))
+                                            (rest ty))))
+                   `(structure ,@element-types)))
+      (lambda (let* ((retty (satori-type (third ty) tenv))
+                     (param-types (map 'list
+                                       #'(lambda (x) (satori-type x tenv))
+                                       (second ty))))
+                `(lambda ,param-types ,retty)))
+      (type-variable (let ((ty* (second (assoc ty tenv :test #'equal))))
+                       (or ty*
+                           (error 'unknown-type :ty ty))))
+      (t (error 'unknown-type :ty ty))))))
+
 (defun llvm-type (ty tenv)
   (cond
    ((null ty) nil)
-   ((eq ty 'i32) (llvm:int32-type))
    ((eq ty 'void) (llvm:void-type))
+   ((eq ty 'i32) (llvm:int32-type))
    ((case (first ty)
       (structure (let* ((element-types (map 'list
                                             #'(lambda (x)

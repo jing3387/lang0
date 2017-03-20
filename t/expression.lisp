@@ -43,10 +43,10 @@
   ;; An `if' expression that evaluates to the `else' branch.
   (prove:is (satori:evlis '((if 0 1 0))) 0)
 
-  ;;An `if' expression that evaluates a defined variable to decide on the `else' branch.
+  ;; An `if' expression that evaluates a defined variable to decide on the `else' branch.
   (prove:is (satori:evlis '((define x 0) (if x 1 0))) 0)
 
-  ;;An `if' expression that evaluates a local variable to decide on the `then' branch.
+  ;; An `if' expression that evaluates a local variable to decide on the `then' branch.
   (prove:is (satori:evlis '((let ((x 1)) (if x 1 0)))) 1)
 
   ;; An `if' expression passed as an argument to a function.
@@ -55,7 +55,7 @@
   ;; An `if' expression that uses a function argument to decide on the `else' branch.
   (prove:is (satori:evlis '(((lambda (x) (if x 1 0)) 0))) 0)
 
-  ;;An `if' expression used as the expression for a local variable.
+  ;; An `if' expression used as the expression for a local variable.
   (prove:is (satori:evlis '((let ((x (if 0 1 0))) x))) 0)
 
   ;; An `if' expression used as the basis for a definition.

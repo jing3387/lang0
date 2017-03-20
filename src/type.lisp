@@ -114,7 +114,8 @@
                   (new-constr `((,pred-type i32) (,true-type ,false-type)))
                   (constr (concatenate 'list new-constr pred-constr true-constr
                                        false-constr)))
-             `(,false-type ,constr (if% ,pred-exp ,true-exp ,false-exp))))
+             `(,false-type ,constr (if% ,pred-exp ,pred-type ,false-type ,true-exp
+                                        ,false-exp))))
        (t (let* ((f (first x))
                  (xs (rest x))
                  (recon-f (recon f ctx))
