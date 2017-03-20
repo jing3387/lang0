@@ -6,11 +6,11 @@ extensible through a macro system. Currently the following special forms are
 planned:
 * `lambda`: the heart of the language ✓
 * `let`: since sequential local variables are easy to represent in LLVM ✓
-* `define`: for recursion that doesn't rely on the Y-Combinator
-* `quote`: to represent literal s-expressions
+* `cond`: the basic conditional
 * `eq`: for testing equality between atoms
 * `atom`: because `car` and `cdr` are defined for lists only
-* `cond`: the basic conditional, for use with the previous two predicates
+* `define`: for recursion that doesn't rely on the Y-Combinator
+* `quote`: to represent literal s-expressions
 * `car`: for returning the first half of a cons cell
 * `cdr`: for returning the second half of a cons cell
 

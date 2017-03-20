@@ -4,12 +4,12 @@
 
 (defun recon (x ctx)
   (cond
-    ((null x) `(nil nil nil))
-    ((integerp x) `(i32 () (i32 ,x)))
+    ((null x) `(i32 nil (i32 0)))
+    ((integerp x) `(i32 nil (i32 ,x)))
     ((symbolp x) (cond
                    ((assoc x ctx)
                     (let ((type (unwrap (flatten (rest (assoc x ctx))))))
-                      `(,type () (variable ,x ,type))))
+                      `(,type nil (variable ,x ,type))))
                    (t (error 'unknown-variable-name :argument x))))
     ((case (first x)
        (lambda (let ((params `(,(gensym) . ,(second x)))
@@ -96,6 +96,25 @@
                  `(void
                    ,exp-constr
                    (define% (variable ,name ,exp-type) ,exp*))))
+       (if (let* ((pred (second x))
+                  (true (third x))
+                  (false (fourth x))
+                  (pred-recon (recon pred ctx))
+                  (pred-type (first pred-recon))
+                  (pred-constr (second pred-recon))
+                  (pred-exp (third pred-recon))
+                  (true-recon (recon true ctx))
+                  (true-type (first true-recon))
+                  (true-constr (second true-recon))
+                  (true-exp (third true-recon))
+                  (false-recon (recon false ctx))
+                  (false-type (first false-recon))
+                  (false-constr (second false-recon))
+                  (false-exp (third false-recon))
+                  (new-constr `((,pred-type i32) (,true-type ,false-type)))
+                  (constr (concatenate 'list new-constr pred-constr true-constr
+                                       false-constr)))
+             `(,false-type ,constr (if% ,pred-exp ,true-exp ,false-exp))))
        (t (let* ((f (first x))
                  (xs (rest x))
                  (recon-f (recon f ctx))

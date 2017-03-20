@@ -9,6 +9,12 @@
             (lambda% t))))
     (t nil)))
 
+(defun find-anywhere (item tree)
+  (cond ((eql item tree) tree)
+        ((atom tree) nil)
+        ((find-anywhere item (first tree)))
+        ((find-anywhere item (rest tree)))))
+
 (defun sort-symbols< (list)
   (assert (every #'symbolp list))
   (let ((strings (map 'list #'string list)))
