@@ -66,7 +66,22 @@
       (eq* (let* ((type (second x))
                   (lhs (third x))
                   (rhs (fourth x)))
-             `(,(comp-eq type lhs rhs env tenv) nil nil)))))))
+             `(,(comp-eq type lhs rhs env tenv) nil nil)))
+      ((add* sub* mul* sdiv* srem*)
+       (let* ((op (first x))
+              (lhs (second x))
+              (rhs (third x)))
+         `(,(comp-int-op op lhs rhs env tenv) nil nil)))))))
+
+(defun comp-int-op (op lhs rhs env tenv)
+  (let* ((clhs (first (comp lhs env tenv)))
+         (crhs (first (comp rhs env tenv))))
+    (case op
+      (add* (llvm:build-add *builder* clhs crhs ""))
+      (sub* (llvm:build-sub *builder* clhs crhs ""))
+      (mul* (llvm:build-mul *builder* clhs crhs ""))
+      (sdiv* (llvm:build-s-div *builder* clhs crhs ""))
+      (srem* (llvm:build-s-rem *builder* clhs crhs "")))))
 
 (defun comp-eq (type lhs rhs env tenv)
   (let* ((clhs (first (comp lhs env tenv)))

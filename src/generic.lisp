@@ -3,6 +3,11 @@
 (defun definep (x)
   (and (listp x) (= (length x) 3) (eq (first x) 'define)))
 
+(defun recp (x)
+  (and (definep x) (listp (third x)) (eq (first (third x)) 'lambda)
+       (find-anywhere (second x) (rest (rest (third x))))
+       (second (third x))))
+
 (define-condition define-in-body (error)
   ((argument :initarg :argument :reader argument))
   (:report (lambda (condition stream)

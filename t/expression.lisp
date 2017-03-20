@@ -1,6 +1,6 @@
 (in-package #:satori)
 
-(prove:plan 18)
+(prove:plan 23)
 
 (llvm:with-objects ((*module* llvm:module "<unknown>")
                     (*builder* llvm:builder)
@@ -59,6 +59,13 @@
   (prove:is (satori:evlis '((let ((x (if (eq 0 1) 1 0))) x))) 0)
 
   ;; An `if' expression used as the basis for a definition.
-  (prove:is (satori:evlis '((define x (if (eq 0 1) 1 0)) x)) 0))
+  (prove:is (satori:evlis '((define x (if (eq 0 1) 1 0)) x)) 0)
+
+  ;; Arithmetic
+  (prove:is (satori:evlis '((add 1 2))) 3)
+  (prove:is (satori:evlis '((sub 1 2))) -1)
+  (prove:is (satori:evlis '((mul 2 2))) 4)
+  (prove:is (satori:evlis '((sdiv 4 2))) 2)
+  (prove:is (satori:evlis '((srem 5 2))) 1))
 
 (prove:finalize)
