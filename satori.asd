@@ -19,14 +19,3 @@
                (:file "type")
                (:file "substitute"))
   :in-order-to ((test-op (test-op satori-test))))
-
-(asdf:defsystem #:satori-test
-  :depends-on (#:satori #:prove)
-  :pathname "t/"
-  :serial t
-  :components ((:file "package")
-               (:file "expression")
-               (:file "definition"))
-  :defsystem-depends-on (:prove-asdf)
-  :perform (test-op :after (op c)
-                    (funcall (intern #.(string :run) :prove) c)))
