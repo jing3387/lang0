@@ -1,5 +1,10 @@
 (in-package #:satori)
 
+(define-condition unknown-variable-name (error)
+  ((argument :initarg :argument :reader argument))
+  (:report (lambda (condition stream)
+             (format stream "unknown variable ~a" (argument condition)))))
+
 (defun comp (x env tenv)
   (cond
    ((symbolp x) (let ((var (second (assoc x env))))

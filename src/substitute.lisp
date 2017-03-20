@@ -29,6 +29,9 @@
               `(let ,(map 'list #'(lambda (var exp)
                                     `(,var ,(substitute* sub exp))) vars exps)
                  ,@(substitute* sub* body))))
+       (define (let ((var (second x))
+                     (exp (third x)))
+                 `(define ,var ,(substitute* sub exp))))
        (lambda* (let* ((params (second x))
                        (retty (third x))
                        (body (rest (rest (rest x))))
@@ -74,7 +77,6 @@
        (t (let ((f (first x))
                 (args (rest x)))
             (map 'list #'(lambda (x) (substitute* sub x)) `(,f . ,args))))))))
-
 
 (defun substitute-type (x constr)
   (cond

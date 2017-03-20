@@ -1,3 +1,8 @@
+(in-package #:cl-user)
+(defpackage #:satori-asd
+  (:use #:cl #:asdf))
+(in-package #:satori-asd)
+
 (asdf:defsystem #:satori
   :description "Yet another Lisp on LLVM"
   :author "Jarrod Jeffrey Ingram <jarrod.jeffi@gmail.com>"
@@ -12,13 +17,16 @@
                (:file "closure")
                (:file "compile")
                (:file "type")
-               (:file "substitute")))
+               (:file "substitute"))
+  :in-order-to ((test-op (test-op satori-test))))
 
 (asdf:defsystem #:satori-test
-  :description "Test suite for Satori"
   :depends-on (#:satori #:prove)
-  :serial t
   :pathname "t/"
+  :serial t
   :components ((:file "package")
                (:file "expression")
-               (:file "definition")))
+               (:file "definition"))
+  :defsystem-depends-on (:prove-asdf)
+  :perform (test-op :after (op c)
+                    (funcall (intern #.(string :run) :prove) c)))

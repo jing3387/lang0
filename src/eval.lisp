@@ -14,13 +14,13 @@
                      (llvm:run-function *execution-engine* ptr ()) t)
                     (cffi:foreign-funcall-pointer ptr () :int32))))))))
 
-(defun eval (x)
+(defun eval* (x)
   (llvm:with-objects ((*module* llvm:module "<unknown>")
                       (*builder* llvm:builder)
                       (*execution-engine* llvm:execution-engine *module*))
     (first (%eval x '() '()))))
 
-(defun evlis (xs)
+(defun evlis* (xs)
   (llvm:with-objects ((*module* llvm:module "<unknown>")
                       (*builder* llvm:builder)
                       (*execution-engine* llvm:execution-engine *module*))
