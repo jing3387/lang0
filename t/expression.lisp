@@ -3,7 +3,7 @@
 (setf prove:*default-reporter* :dot
       prove:*enable-colors* nil)
 
-(prove:plan 12)
+(prove:plan 10)
 
 ;; Constant maps to a constant.
 (prove:is (satori:eval* 0) 0)
@@ -36,11 +36,5 @@
 ;; Bind the identity function and a variable leaving just a variable in the
 ;; `let' expression after the identity function is substituted into the body.
 (prove:is (satori:eval* '((lambda (x) (let ((f (lambda (x) x)) (y x)) (f y))) 0)) 0)
-
-;; Constant definition.
-(prove:is (satori:evlis '((define x 0) x)) 0)
-
-;; Lambda definition.
-(prove:is (satori:evlis '((define x (lambda (x) x)) (x 0))) 0)
 
 (prove:finalize)

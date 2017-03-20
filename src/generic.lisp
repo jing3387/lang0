@@ -39,5 +39,5 @@
          (sub* (pairlis (map 'list #'car sub)
                         (map 'list #'(lambda (y) (substitute* sub y))
                              (map 'list #'cdr sub))))
-         (x* (remove-nil (remove-definitions (substitute* sub* x)))))
+         (x* (remove-definitions (substitute* sub* x))))
     `(,x* ,sub*)))
