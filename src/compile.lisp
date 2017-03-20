@@ -62,7 +62,17 @@
                   (body-type (fourth x))
                   (true (fifth x))
                   (false (sixth x)))
-             `(,(comp-if pred pred-type body-type true false env tenv) nil nil)))))))
+             `(,(comp-if pred pred-type body-type true false env tenv) nil nil)))
+      (eq* (let* ((type (second x))
+                  (lhs (third x))
+                  (rhs (fourth x)))
+             `(,(comp-eq type lhs rhs env tenv) nil nil)))))))
+
+(defun comp-eq (type lhs rhs env tenv)
+  (let* ((clhs (first (comp lhs env tenv)))
+         (crhs (first (comp rhs env tenv))))
+    (case (satori-type type tenv)
+      (i32 (llvm:build-i-cmp *builder* := clhs crhs "")))))
 
 (defun comp-bool (x)
   (if x
@@ -98,6 +108,8 @@
 (defun comp-cond (pred pred-type env tenv)
   (let* ((cpred (comp pred env tenv)))
     (case (satori-type pred-type tenv)
+      (i1 (llvm:build-i-cmp *builder* :/= (first cpred) (llvm:const-int (llvm:int1-type) 0)
+                            ""))
       (i32 (llvm:build-i-cmp *builder* :/= (first cpred) (comp-int '(i32 0)) "")))))
 
 (defun comp-define (var exp env tenv)
@@ -136,6 +148,7 @@
   (cond
    ((null ty) nil)
    ((eq ty 'void) ty)
+   ((eq ty 'i1) ty)
    ((eq ty 'i32) ty)
    ((case (first ty)
       (structure (let* ((element-types (map 'list
@@ -157,6 +170,7 @@
   (cond
    ((null ty) nil)
    ((eq ty 'void) (llvm:void-type))
+   ((eq ty 'i1) (llvm:int1-type))
    ((eq ty 'i32) (llvm:int32-type))
    ((case (first ty)
       (structure (let* ((element-types (map 'list

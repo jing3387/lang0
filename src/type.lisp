@@ -68,11 +68,9 @@
                                  (if (not (isval exp*))
                                      (progn
                                        (setf annotated-bindings
-                                             `(((variable ,var ,exp-type)
-                                                ,exp*)
+                                             `(((variable ,var ,exp-type) ,exp*)
                                                . ,annotated-bindings))
-                                       (setf binding-constr
-                                             `(,constr1 . ,binding-constr))
+                                       (setf binding-constr `(,constr1 . ,binding-constr))
                                        `((,var ,exp-type) . ,ctx))
                                      ctx)))
                            (pairlis vars exps)
@@ -86,7 +84,7 @@
                    (body-constr (second body-last))
                    (annotated-body (map 'list #'third recon2)))
               `(,body-type
-                ,(append binding-constr body-constr)
+                ,(append (first binding-constr) body-constr)
                 (let% ,annotated-bindings* ,body-type ,@annotated-body))))
        (define (let* ((name (second x))
                       (exp-recon (recon (third x) ctx))
@@ -111,11 +109,24 @@
                   (false-type (first false-recon))
                   (false-constr (second false-recon))
                   (false-exp (third false-recon))
-                  (new-constr `((,pred-type i32) (,true-type ,false-type)))
+                  (new-constr `((,pred-type i1) (,true-type ,false-type)))
                   (constr (concatenate 'list new-constr pred-constr true-constr
                                        false-constr)))
              `(,false-type ,constr (if% ,pred-exp ,pred-type ,false-type ,true-exp
                                         ,false-exp))))
+       (eq (let* ((lhs (second x))
+                  (lhs-recon (recon lhs ctx))
+                  (lhs-type (first lhs-recon))
+                  (lhs-constr (second lhs-recon))
+                  (lhs-exp (third lhs-recon))
+                  (rhs (third x))
+                  (rhs-recon (recon rhs ctx))
+                  (rhs-type (first rhs-recon))
+                  (rhs-constr (second rhs-recon))
+                  (rhs-exp (third rhs-recon))
+                  (new-constr `((,lhs-type ,rhs-type)))
+                  (constr (append new-constr lhs-constr rhs-constr)))
+             `(i1 ,constr (eq% ,lhs-type ,lhs-exp ,rhs-exp))))
        (t (let* ((f (first x))
                  (xs (rest x))
                  (recon-f (recon f ctx))
@@ -135,6 +146,7 @@
 (defun subst-type (tyX tyT tyS)
   (defun f (tyS)
     (cond
+      ((equal tyS 'i1) 'i1)
       ((equal tyS 'i32) 'i32)
       ((case (first tyS)
          (structure tyS)
@@ -166,6 +178,7 @@
 (defun occurs-in (tyX tyT)
   (defun o (tyT)
     (cond
+      ((equal tyT 'i1) nil)
       ((equal tyT 'i32) nil)
       ((case (first tyT)
          (type-variable (equal (second tyT) tyX))
