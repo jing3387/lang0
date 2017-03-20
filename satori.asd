@@ -1,21 +1,21 @@
 (asdf:defsystem #:satori
-  :description "Describe satori here"
-  :author "Your Name <your.name@example.com>"
-  :license "Specify license here"
+  :description "Satori Scheme: Yet Another Lisp"
+  :author "Jarrod Jeffrey Ingram <jarrod.jeffi@gmail.com>"
+  :license "BSD-3-Clause"
   :depends-on (#:alexandria #:llvm)
   :serial t
   :pathname "src/"
   :components ((:file "package")
                (:file "satori")
-               (:file "utils")
+               (:file "util")
                (:file "eval")
                (:file "closure")
                (:file "compile")
-               (:file "types")
+               (:file "type")
                (:file "substitute")))
 
 (asdf:defsystem #:satori-test
-  :description "Test suite for the Satori project"
+  :description "Test suite for Satori Scheme"
   :depends-on (#:satori #:prove)
   :serial t
   :pathname "t/"

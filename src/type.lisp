@@ -1,6 +1,6 @@
-(in-package #:satori)
-
 ;; See: http://www.cis.upenn.edu/~bcpierce/tapl/checkers/fullrecon/core.ml
+
+(in-package #:satori)
 
 (defun recon (x ctx)
   (cond
