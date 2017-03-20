@@ -4,6 +4,7 @@
 
 (defun recon (x ctx)
   (cond
+    ((null x) `(nil nil nil))
     ((integerp x) `(i32 () (i32 ,x)))
     ((symbolp x) (cond
                    ((assoc x ctx)
@@ -111,15 +112,6 @@
                  (constr (append new-constr constr-f constr-xs)))
             `(,type-ret ,constr (,exp-f ,@exp-xs))))))))
 
-(defun isval (x)
-  (cond
-    ((integerp x) t)
-    ((and (listp x)
-          (case (first x)
-            (lambda t)
-            (lambda% t))))
-    (t nil)))
-
 (defun subst-type (tyX tyT tyS)
   (defun f (tyS)
     (cond
@@ -209,7 +201,8 @@
 
 (defun infer (x ctx constr)
   (let* ((recon (recon x ctx))
-         (type (first recon))
-         (exp (third recon))
-         (constr* (unify (remove-nil (append constr (second recon))))))
-    `(,(apply-subst constr* type) ,constr* ,(substitute-type exp constr*))))
+         (type (first recon)))
+    (when type
+      (let ((exp (third recon))
+            (constr* (unify (remove-nil (append constr (second recon))))))
+        `(,(apply-subst constr* type) ,constr* ,(substitute-type exp constr*))))))

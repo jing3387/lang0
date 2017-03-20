@@ -1,5 +1,14 @@
 (in-package #:satori)
 
+(defun isval (x)
+  (cond
+    ((integerp x) t)
+    ((and (listp x)
+          (case (first x)
+            (lambda t)
+            (lambda% t))))
+    (t nil)))
+
 (defun sort-symbols< (list)
   (assert (every #'symbolp list))
   (let ((strings (map 'list #'string list)))
