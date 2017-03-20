@@ -1,8 +1,5 @@
 (in-package :satori)
 
-(defun eval* (x)
-  (first (%eval x '() '() '())))
-
 (defun evlis (xs)
   (cond ((null xs) nil)
         (t (car (reduce

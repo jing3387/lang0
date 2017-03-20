@@ -10,9 +10,7 @@
    ((symbolp x) (let ((var (second (assoc x env))))
                   (if var
                       `(,var nil nil)
-                      (progn
-                        (llvm:dump-module *module*)
-                        (error 'unknown-variable-name :argument x)))))
+                      (error 'unknown-variable-name :argument x))))
    ((case (first x)
       (null `(nil nil nil))
       (i32 `(,(comp-int x) nil nil))
@@ -62,7 +60,7 @@
       (if* (let* ((pred (second x))
                   (true (third x))
                   (false (fourth x)))
-             (comp-if pred true false env tenv)))))))
+             `(,(comp-if pred true false env tenv) nil nil)))))))
 
 (defun comp-bool (x)
   (if x
@@ -88,25 +86,26 @@
           (llvm:position-builder *builder* merge-bb)
           (let ((phi (llvm:build-phi *builder* (llvm:int32-type) "")))
             (llvm:add-incoming phi (list (first then) (first else)) (list then-bb else-bb))
-            `(,phi nil nil)))))))
+            phi))))))
 
 (defun comp-null ()
   (llvm:const-int (llvm:int1-type) 0))
 
 (defun comp-cond (pred env tenv)
   (let* ((cpred (comp pred env tenv)))
-    `(,(llvm:build-i-cmp *builder* :/= (first cpred) (comp-null) "") (llvm:int32-type))))
+    `(,(llvm:build-i-cmp *builder* :/= (first cpred) (comp-int '(i32 0)) "")
+      (llvm:int32-type))))
 
 (defun comp-define (var exp env tenv)
   (let ((name (second var))
         (type (third var))
         (cexp (first (comp exp env tenv))))
-    (when (llvm:constantp cexp)
-      (let* ((global (llvm:add-global *module* (llvm-type type tenv) (string name)))
-             (env* `((,name ,global) . ,env))
-             (tenv* `((,name ,type) . ,tenv)))
-        (setf (llvm:initializer global) cexp)
-        `(void ,env* ,tenv*)))))
+    (let* ((global (llvm:add-global *module* (llvm-type type tenv) (string name)))
+           (env* `((,name ,global) . ,env))
+           (tenv* `((,name ,type) . ,tenv)))
+      (setf (llvm:initializer global) (comp-int '(i32 0)))
+      (llvm:build-store *builder* cexp global)
+      `(,global ,env* ,tenv*))))
 
 (defun comp-tenv (vars tenv)
   (let* ((var-types (map 'list
@@ -156,11 +155,8 @@
                            ty*
                          (let ((ty** (llvm-type ty* tenv)))
                            (or ty**
-                               (progn
-                                 (llvm:dump-module *module*)
-                                 (error 'unknown-type :ty ty)))))))))
-   (t (llvm:dump-module *module*)
-      (error 'unknown-type :ty ty))))
+                               (error 'unknown-type :ty ty))))))))
+   (t (error 'unknown-type :ty ty))))
 
 (defun comp-binding (var exp env tenv)
   (let* ((type (llvm-type (third var) tenv))
@@ -191,13 +187,9 @@
                            (setf idx (1+ idx))))
                      (list clambda* c-make-env))
                 ptr)
-              (progn
-                (llvm:dump-module *module*)
-                (error 'unable-to-allocate-memory
-                       :argument (llvm:get-type-by-name *module* closure-type))))))
-      (progn
-        (llvm:dump-module *module*)
-        (error 'satori-error :message "unable to create closure"))))
+              (error 'unable-to-allocate-memory
+                     :argument (llvm:get-type-by-name *module* closure-type)))))
+      (error 'satori-error :message "unable to create closure")))
 
 (defun comp-var (var env tenv)
   (let ((name (second var)))
@@ -205,9 +197,7 @@
      ((and (listp name) (eq (first name) 'env-ref)) (first (comp name env tenv)))
      ((assoc name env)
       (llvm:build-load *builder* (second (assoc name env)) ""))
-     (t (progn
-          (llvm:dump-module *module*)
-          (error 'unknown-variable-name :argument name))))))
+     (t (error 'unknown-variable-name :argument name)))))
 
 (defun comp-int (x)
   (llvm:const-int (llvm:int32-type) (second x)))
@@ -247,12 +237,9 @@
                     (llvm:build-ret *builder* retval)
                     function)
                 (progn
-                  (llvm:dump-module *module*)
                   (llvm:delete-function function)
                   (error 'satori-error :message "failed to compile lambda body")))))
-        (progn
-          (llvm:dump-module *module*)
-          (error 'satori-error :message "failed to compile lambda"))))))
+          (error 'satori-error :message "failed to compile lambda")))))
 
 (defun comp-make-env (env-var vs env tenv)
   (let* ((types (map 'list
@@ -310,6 +297,4 @@
 (defun comp-in-main (x env tenv)
   (let ((code (comp x env tenv)))
     (or code
-        (progn
-          (llvm:dump-module *module*)
-          (error 'satori-error :message "failed to compile top-level expression")))))
+        (error 'satori-error :message "failed to compile top-level expression"))))
