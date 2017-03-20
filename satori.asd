@@ -1,5 +1,5 @@
 (asdf:defsystem #:satori
-  :description "Satori Scheme: Yet Another Lisp"
+  :description "Yet another Lisp on LLVM"
   :author "Jarrod Jeffrey Ingram <jarrod.jeffi@gmail.com>"
   :license "BSD-3-Clause"
   :depends-on (#:alexandria #:llvm)
@@ -15,7 +15,7 @@
                (:file "substitute")))
 
 (asdf:defsystem #:satori-test
-  :description "Test suite for Satori Scheme"
+  :description "Test suite for Satori"
   :depends-on (#:satori #:prove)
   :serial t
   :pathname "t/"
