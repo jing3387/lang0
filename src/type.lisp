@@ -4,7 +4,7 @@
 
 (defun recon (x ctx)
   (cond
-    ((null x) `(i32 nil (i32 0)))
+    ((null x) `(nil nil nil))
     ((integerp x) `(i32 nil (i32 ,x)))
     ((symbolp x) (cond
                    ((assoc x ctx)
