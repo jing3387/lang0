@@ -66,6 +66,14 @@
   (prove:is (satori:evlis '((sub 1 2))) -1)
   (prove:is (satori:evlis '((mul 2 2))) 4)
   (prove:is (satori:evlis '((sdiv 4 2))) 2)
-  (prove:is (satori:evlis '((srem 5 2))) 1))
+  (prove:is (satori:evlis '((srem 5 2))) 1)
+
+  ;; Recursive definition
+  (prove:is (satori:evlis '((define factorial
+                             (lambda (x)
+                               (if (eq x 1)
+                                   1
+                                   (mul x (factorial (sub x 1))))))
+                            (factorial 5))) 120))
 
 (prove:finalize)
