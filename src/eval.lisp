@@ -1,19 +1,18 @@
 (in-package #:satori)
 
 (defun foreign-funcall-ptr (ty main)
-  (cond
-    (t (let ((ptr (llvm:pointer-to-global *execution-engine* main)))
-         (case ty
-           (void
-            (progn
-              (if (cffi:pointer-eq main ptr)
-                  (llvm:run-function *execution-engine* ptr ())
-                  (cffi:foreign-funcall-pointer ptr () :void))
-              nil))
-           (i32
-            (if (cffi:pointer-eq main ptr)
-                (llvm:generic-value-to-int (llvm:run-function *execution-engine* ptr ()) t)
-                (cffi:foreign-funcall-pointer ptr () :int32))))))))
+  (let ((ptr (llvm:pointer-to-global *execution-engine* main)))
+    (case ty
+      (void
+       (progn
+         (if (cffi:pointer-eq main ptr)
+             (llvm:run-function *execution-engine* ptr ())
+             (cffi:foreign-funcall-pointer ptr () :void))
+         nil))
+      (i32
+       (if (cffi:pointer-eq main ptr)
+           (llvm:generic-value-to-int (llvm:run-function *execution-engine* ptr ()) t)
+           (cffi:foreign-funcall-pointer ptr () :int32))))))
 
 (defun %eval (x env tenv defs)
   (let* ((ctx (remove-if-not #'(lambda (x) (symbolp (first x))) tenv))

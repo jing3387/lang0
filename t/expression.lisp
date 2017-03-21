@@ -1,6 +1,6 @@
 (in-package #:satori)
 
-(prove:plan 25)
+(prove:plan 22)
 
 (llvm:with-objects ((*module* llvm:module "<unknown>")
                     (*builder* llvm:builder)
@@ -68,12 +68,6 @@
                          1
                          0))) 0)
 
-  ;; An `eq' expression that evaluates a defined variable.
-  (prove:is (evlis '((define x 0)
-                     (if (eq x 1)
-                         1
-                         0))) 0)
-
   ;; An `eq' expression that evaluates a local variable.
   (prove:is (evlis '((let ((x 1))
                        (if (eq x 1)
@@ -101,27 +95,12 @@
                                   0)))
                        x))) 0)
 
-  ;; An `if' expression used as the basis for a definition.
-  (prove:is (evlis '((define x
-                      (if (eq 0 1)
-                          1
-                          0))
-                     x)) 0)
-
   ;; Arithmetic
   (prove:is (evlis '((add 1 2))) 3)
   (prove:is (evlis '((sub 3 2))) 1)
   (prove:is (evlis '((mul 2 2))) 4)
   (prove:is (evlis '((sdiv 4 2))) 2)
   (prove:is (evlis '((srem 5 2))) 1)
-
-  ;; Recursive definitions
-  (prove:is (evlis '((define factorial
-                      (lambda (x)
-                        (if (eq x 1)
-                            1
-                            (mul x (factorial (sub x 1))))))
-                     (factorial 5))) 120)
 
   ;; Anonymous recursion, because factorial has a value as its expression the
   ;; `lambda' gets substituted into the body of the `let' therefore anonymous
