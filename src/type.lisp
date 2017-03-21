@@ -8,8 +8,11 @@
     ((integerp x) `(i32 nil (i32 ,x)))
     ((symbolp x) (cond
                    ((assoc x ctx)
-                    (let ((type (unwrap (rest (assoc x ctx)))))
-                      `(,type nil (variable ,x ,type))))
+                    (let* ((type (unwrap (rest (assoc x ctx))))
+                           (type* (or (and (listp type) (not (symbolp (first type)))
+                                           (flatten type))
+                                      type)))
+                      `(,type* nil (variable ,x ,type*))))
                    (t (error 'unknown-variable-name :argument x))))
     ((case (first x)
        (lambda (let ((params `(,(gensym) . ,(second x)))
@@ -23,7 +26,9 @@
                         (callee `(%callee . (lambda ,param-types
                                               (type-variable ,(gensym "T")))))
                         (ctx* (append (pairlis params param-types) ctx))
-                        (ctx** `(,callee . ,ctx*))
+                        (ctx** (or (and (find-anywhere '%callee body)
+                                        `(,callee . ,ctx*))
+                                   ctx*))
                         (body-recon (map 'list
                                          #'(lambda (x)
                                              (recon x ctx** defs))
@@ -41,7 +46,7 @@
                         (lam `(lambda ,param-types ,body-type))
                         (body** (sublis `(((variable %callee ,(cdr callee)
                                                      . (variable %callee ,lam))))
-                                         body* :test #'equal)))
+                                        body* :test #'equal)))
                    `(,lam
                      ((,(first param-types)
                        (structure
@@ -56,7 +61,7 @@
                    (exps*
                      (map 'list
                           #'(lambda (var exp)
-                                (substitute* `((,var . %callee)) exp))
+                              (substitute* `((,var . %callee)) exp))
                           vars exps))
                    (body (rest (rest x)))
                    (sub (map 'list
@@ -83,7 +88,8 @@
                                        (setf annotated-bindings
                                              `(((variable ,var ,exp-type) ,exp*)
                                                . ,annotated-bindings))
-                                       (setf binding-constr `(,constr1 . ,binding-constr))
+                                       (setf binding-constr `(,constr1
+                                                              . ,binding-constr))
                                        `((,var ,exp-type) . ,ctx))
                                      ctx)))
                            (map 'list #'list vars exps**)
@@ -100,7 +106,7 @@
                 ,(append (first binding-constr) body-constr)
                 (let% ,annotated-bindings* ,body-type ,@annotated-body))))
        (define (let* ((name (second x))
-                      (rec (recp x))
+                      (rec (recursive-definition-p x))
                       (param-syms (alexandria:make-gensym-list (length rec) "T"))
                       (param-types (map 'list #'list
                                         (make-list (length rec)
@@ -189,9 +195,9 @@
       ((case (first tyS)
          (structure tyS)
          (type-variable (let ((s (second tyS)))
-               (if (equal s tyX)
-                   tyT
-                   `(type-variable ,s))))
+                          (if (equal s tyX)
+                              tyT
+                              `(type-variable ,s))))
          (lambda (let ((tyS1 (second tyS))
                        (tyS2 (third tyS)))
                    `(lambda ,(map 'list #'f tyS1) ,(f tyS2))))))))

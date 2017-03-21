@@ -25,7 +25,7 @@
          (type (or (and (definep x) 'void)
                    (first inference)))
          (tenv* (append (second inference) tenv)))
-    (if (genericp type)
+    (if (genericp (first inference))
         `(nil ,env ,tenv* ,defs*)
         (let* ((ir1 (third inference))
                (ir2 (flat-closure-convert ir1))
@@ -34,7 +34,8 @@
                (param-types (make-array 0))
                (ftype (llvm:function-type retty param-types))
                (main (llvm:add-function *module* "" ftype)))
-          (llvm:position-builder-at-end *builder* (llvm:append-basic-block main "entry"))
+          (llvm:position-builder-at-end *builder*
+                                        (llvm:append-basic-block main "entry"))
           (let* ((x* (comp-in-main ir2 env tenv*))
                  (env** (or (second x*) env))
                  (tenv** (or (third x*) tenv*)))

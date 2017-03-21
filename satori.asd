@@ -19,6 +19,6 @@
    (:module "t"
             :depends-on ("src")
             :components
-            ((:test-file "util")
+            ((:file "util")
              (:test-file "expression")
              (:test-file "definition")))))

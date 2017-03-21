@@ -3,6 +3,13 @@
 (defun genericp (type)
   (find-anywhere 'type-variable type))
 
+(defun definep (x)
+  (and (listp x) (= (length x) 3) (eq (first x) 'define)))
+
+(defun recursive-definition-p (x)
+  (and (listp x) (= (length x) 3) (listp (third x)) (eq (first (third x)) 'lambda)
+       (find-anywhere (second x) (third x)) (second (third x))))
+
 (define-condition define-in-body (error)
   ((argument :initarg :argument :reader argument))
   (:report (lambda (condition stream)

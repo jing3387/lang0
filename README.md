@@ -9,8 +9,8 @@ planned:
 * `if`: the basic conditional ✓
 * `eq`: for testing equality between atoms ✓
 * `define`: for recursion that doesn't rely on the Y-Combinator ✓
-* `atom`: because `car` and `cdr` are defined for lists only
 * `quote`: to represent literal s-expressions
+* `atom`: because `car` and `cdr` are defined for lists only
 * `car`: for returning the first half of a cons cell
 * `cdr`: for returning the second half of a cons cell
 
