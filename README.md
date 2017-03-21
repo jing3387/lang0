@@ -8,8 +8,8 @@ planned:
 * `let`: since sequential local variables are easy to represent in LLVM ✓
 * `if`: the basic conditional ✓
 * `eq`: for testing equality between atoms ✓
+* `define`: for recursion that doesn't rely on the Y-Combinator ✓
 * `atom`: because `car` and `cdr` are defined for lists only
-* `define`: for recursion that doesn't rely on the Y-Combinator
 * `quote`: to represent literal s-expressions
 * `car`: for returning the first half of a cons cell
 * `cdr`: for returning the second half of a cons cell

@@ -12,7 +12,8 @@
                     (env-var (first params))
                     (retty (third x))
                     (body (rest (rest (rest x))))
-                    (fv (set-difference (sort-symbols< (free x)) *global-environment*))
+                    (fv (set-difference (sort-symbols< (free x))
+                                        `(%callee . ,*global-environment*)))
                     (env (pairlis fv fv))
                     (idx 0)
                     (sub (map 'list

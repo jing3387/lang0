@@ -20,10 +20,13 @@
                                           (make-list (length param-syms)
                                                      :initial-element 'type-variable)
                                           param-syms))
+                        (callee `(%callee . (lambda ,param-types
+                                              (type-variable ,(gensym "T")))))
                         (ctx* (append (pairlis params param-types) ctx))
+                        (ctx** `(,callee . ,ctx*))
                         (body-recon (map 'list
                                          #'(lambda (x)
-                                             (recon x ctx* defs))
+                                             (recon x ctx** defs))
                                          body))
                         (body-last (first (last body-recon)))
                         (body-type (first body-last))
@@ -34,8 +37,12 @@
                                       params
                                       param-types))
                         (body* (map 'list #'third body-recon))
-                        (free-vars (free x)))
-                   `((lambda ,param-types ,body-type)
+                        (free-vars (free x))
+                        (lam `(lambda ,param-types ,body-type))
+                        (body** (sublis `(((variable %callee ,(cdr callee)
+                                                     . (variable %callee ,lam))))
+                                         body* :test #'equal)))
+                   `(,lam
                      ((,(first param-types)
                        (structure
                         ,@(map 'list
@@ -43,25 +50,35 @@
                                    (rest (assoc fv ctx*)))
                                (set-difference free-vars defs))))
                       . ,body-constr)
-                     (lambda% ,params* ,body-type ,@body*)))))
+                     (lambda% ,params* ,body-type ,@body**)))))
        (let (let* ((vars (map 'list #'first (second x)))
                    (exps (map 'list #'second (second x)))
+                   (lams '())
+                   (exps*
+                     (map 'list
+                          #'(lambda (var exp)
+                                (substitute* `((,var . %callee)) exp))
+                          vars exps))
                    (body (rest (rest x)))
                    (sub (map 'list
                              #'(lambda (var exp)
                                  (when (isval exp)
                                    `(,var . ,exp)))
                              vars
-                             exps))
+                             exps*))
                    (body* (substitute* sub body))
                    (binding-constr '())
                    (annotated-bindings '())
                    (ctx1 (reverse
                           (reduce
                            #'(lambda (binding ctx)
-                               (let* ((var (car binding))
-                                      (exp (cdr binding))
-                                      (recon1 (recon exp ctx defs))
+                               (let* ((var (first binding))
+                                      (exp (second binding))
+                                      (lam (third binding))
+                                      (ctx* (or (and (listp exp) (eq (first exp) 'lambda)
+                                                     `((,var . ,lam) . ,ctx))
+                                                ctx))
+                                      (recon1 (recon exp ctx* defs))
                                       (exp-type (first recon1))
                                       (constr1 (second recon1))
                                       (exp* (third recon1)))
@@ -72,8 +89,8 @@
                                                . ,annotated-bindings))
                                        (setf binding-constr `(,constr1 . ,binding-constr))
                                        `((,var ,exp-type) . ,ctx))
-                                     ctx)))
-                           (pairlis vars exps)
+                                     ctx*)))
+                           (map 'list #'list vars exps lams)
                            :initial-value ctx
                            :from-end t)))
                    (annotated-bindings* (reverse annotated-bindings))
