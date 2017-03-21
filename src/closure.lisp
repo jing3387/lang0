@@ -2,6 +2,8 @@
 
 (in-package #:satori)
 
+(defvar *global-environment*)
+
 (defun closure-convert (x)
   (case (first x)
     (i32 x)
@@ -10,7 +12,7 @@
                     (env-var (first params))
                     (retty (third x))
                     (body (rest (rest (rest x))))
-                    (fv (sort-symbols< (free x)))
+                    (fv (set-difference (sort-symbols< (free x)) *global-environment*))
                     (env (pairlis fv fv))
                     (idx 0)
                     (sub (map 'list
@@ -132,6 +134,7 @@
                        ,@(map 'list #'transform body))))
             (define% (let ((var (second x))
                            (exp (third x)))
+                       (setf *global-environment* `(,(second var) . ,*global-environment*))
                        `(define* ,var ,(transform exp))))
             (if% (let ((pred (second x))
                        (pred-type (third x))
@@ -176,6 +179,7 @@
                        ,@(map 'list #'transform body))))
             (define* (let ((var (second x))
                            (exp (third x)))
+                       (setf *global-environment* `(,(second var) . ,*global-environment*))
                        `(define* ,var ,(transform exp))))
             (if* (let ((pred (second x))
                        (pred-type (third x))
@@ -199,4 +203,5 @@
     (funcall f x*)))
 
 (defun flat-closure-convert (x)
+  (setf *global-environment* nil)
   (transform-bottom-up #'closure-convert x))

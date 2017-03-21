@@ -1,12 +1,7 @@
 (in-package #:satori)
 
-(defun definep (x)
-  (and (listp x) (= (length x) 3) (eq (first x) 'define)))
-
-(defun recp (x)
-  (and (definep x) (listp (third x)) (eq (first (third x)) 'lambda)
-       (find-anywhere (second x) (rest (rest (third x))))
-       (second (third x))))
+(defun genericp (type)
+  (find-anywhere 'type-variable type))
 
 (define-condition define-in-body (error)
   ((argument :initarg :argument :reader argument))
@@ -18,8 +13,4 @@
          (defs* (or (and def `((,(second def) . ,(third def))  . ,defs))
                     defs))
          (x* (substitute* defs* x)))
-    (if (not (find-anywhere 'define (third def)))
-        (if (and def (isval (third def)))
-            `(nil ,defs*)
-            `(,x* ,defs*))
-        (error 'define-in-body :argument x*))))
+    `(,x* ,defs*)))
