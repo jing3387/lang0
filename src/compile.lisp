@@ -231,7 +231,6 @@
          (env* `((,name ,alloca) . ,env))
          (tenv* `((,name ,(llvm-type (third var) tenv)) . ,tenv))
          (code (first (comp exp env* tenv*))))
-    (format *error-output* "~a~%" (second var))
     (llvm:build-store *builder* code alloca)
     alloca))
 

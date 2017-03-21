@@ -53,7 +53,6 @@
                      (lambda% ,params* ,body-type ,@body**)))))
        (let (let* ((vars (map 'list #'first (second x)))
                    (exps (map 'list #'second (second x)))
-                   (lams '())
                    (exps*
                      (map 'list
                           #'(lambda (var exp)
@@ -66,6 +65,7 @@
                                    `(,var . ,exp)))
                              vars
                              exps*))
+                   (exps** (map 'list #'(lambda (x) (substitute* sub x)) exps*))
                    (body* (substitute* sub body))
                    (binding-constr '())
                    (annotated-bindings '())
@@ -74,11 +74,7 @@
                            #'(lambda (binding ctx)
                                (let* ((var (first binding))
                                       (exp (second binding))
-                                      (lam (third binding))
-                                      (ctx* (or (and (listp exp) (eq (first exp) 'lambda)
-                                                     `((,var . ,lam) . ,ctx))
-                                                ctx))
-                                      (recon1 (recon exp ctx* defs))
+                                      (recon1 (recon exp ctx defs))
                                       (exp-type (first recon1))
                                       (constr1 (second recon1))
                                       (exp* (third recon1)))
@@ -89,8 +85,8 @@
                                                . ,annotated-bindings))
                                        (setf binding-constr `(,constr1 . ,binding-constr))
                                        `((,var ,exp-type) . ,ctx))
-                                     ctx*)))
-                           (map 'list #'list vars exps lams)
+                                     ctx)))
+                           (map 'list #'list vars exps**)
                            :initial-value ctx
                            :from-end t)))
                    (annotated-bindings* (reverse annotated-bindings))

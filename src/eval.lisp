@@ -12,8 +12,7 @@
               nil))
            (i32
             (if (cffi:pointer-eq main ptr)
-                (llvm:generic-value-to-int
-                 (llvm:run-function *execution-engine* ptr ()) t)
+                (llvm:generic-value-to-int (llvm:run-function *execution-engine* ptr ()) t)
                 (cffi:foreign-funcall-pointer ptr () :int32))))))))
 
 (defun %eval (x env tenv defs)
