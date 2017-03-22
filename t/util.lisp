@@ -1,5 +1,8 @@
 (in-package :satori)
 
+(setf prove:*enable-colors* nil
+      prove:*default-reporter* :dot)
+
 (defun evlis (xs)
   (cond ((null xs) nil)
         (t (car (reduce
