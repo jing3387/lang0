@@ -11,6 +11,10 @@
                   (if var
                       `(,var env tenv)
                       (error 'unknown-variable-name :argument x))))
+   ((integerp (first x))
+    (let ((idx (first x))
+          (cons (second x)))
+      (comp-index idx cons env tenv)))
    ((case (first x)
       (null `(nil env tenv))
       (i32 `(,(comp-int x) ,env ,tenv))
@@ -75,6 +79,17 @@
       (cons* (let ((elements (second x))
                    (types (third x)))
                (comp-cons elements types env tenv)))))))
+
+(defun comp-index (idx cons env tenv)
+  (let* ((ccons (first (comp cons env tenv)))
+         (indices (vector (llvm:const-int (llvm:int32-type) 0)
+                          (llvm:const-int (llvm:int32-type) idx)))
+         (ptr (llvm:build-gep *builder* ccons indices ""))
+         (load (llvm:build-load *builder* ptr ""))
+         (element-indices (vector (llvm:const-int (llvm:int32-type) 0)))
+         (element-ptr (llvm:build-gep *builder* load element-indices ""))
+         (element-load (llvm:build-load *builder* element-ptr "")))
+    `(,element-load ,env ,tenv)))
 
 (defun comp-cons (elements types env tenv)
   (let* ((types* (map 'list #'(lambda (x) (llvm:pointer-type (llvm-type x tenv))) types))

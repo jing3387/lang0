@@ -42,9 +42,11 @@
     (eq* x)
     (cons* x)
     ((add* sub* mul* sdiv* srem*) x)
-    (t (let ((f (first x))
-             (args (rest x)))
-         `(apply-closure ,f ,@args)))))
+    (t (cond
+         ((integerp (first x)) x)
+         (t (let ((f (first x))
+                  (args (rest x)))
+              `(apply-closure ,f ,@args)))))))
 
 (defun free (x)
   (cond
@@ -116,13 +118,15 @@
         (let ((lhs (third x))
               (rhs (fourth x)))
           (delete-duplicates (flatten (append (free lhs) (free rhs))))))
-       (cons* (let ((elements (rest (rest x))))
+       (cons* (let ((elements (rest x)))
                 (delete-duplicates (flatten (mappend #'free elements)))))
-       (list* (let ((elements (rest (rest x))))
-                (delete-duplicates (flatten (mappend #'free elements)))))
-       (t (let ((f (first x))
-                (args (rest x)))
-            (delete-duplicates (flatten (map 'list #'free `(,f . ,args))))))))))
+       (t (cond
+            ((integerp (first x))
+             (let ((cons (second x)))
+               (free cons)))
+            (t (let ((f (first x))
+                     (args (rest x)))
+                 (delete-duplicates (flatten (map 'list #'free `(,f . ,args))))))))))))
 
 
 (defun transform-bottom-up (f x)
@@ -212,9 +216,14 @@
             (cons* (let ((elements (second x))
                          (types (third x)))
                      `(cons* ,@(map 'list #'transform elements) ,types)))
-            (t (let ((f (first x))
-                     (args (rest x)))
-                 `(,(transform f) ,@(map 'list #'transform args)))))))
+            (t (cond
+                 ((integerp (first x))
+                  (let ((idx (first x))
+                        (cons (second x)))
+                    `(,idx ,(transform cons))))
+                 (t (let ((f (first x))
+                          (args (rest x)))
+                      `(,(transform f) ,@(map 'list #'transform args)))))))))
     (funcall f x*)))
 
 (defun flat-closure-convert (x)
