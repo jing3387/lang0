@@ -212,8 +212,6 @@
       ((equal tyS 'i32) 'i32)
       ((case (first tyS)
          (structure tyS)
-         (cons tyS)
-         (list tyS)
          (type-variable (let ((s (second tyS)))
                           (if (equal s tyX)
                               tyT
