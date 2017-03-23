@@ -132,7 +132,7 @@
 (defun comp-bool (x)
   (if x
       (llvm:const-int (llvm:int1-type) 1)
-      (comp-null)))
+      (llvm:const-int (llvm:int1-type) 0)))
 
 (defun comp-if (pred pred-type body-type true false env tenv)
   (let* ((cond* (comp-cond pred pred-type env tenv)))
@@ -223,6 +223,8 @@
    ((eq ty 'void) ty)
    ((eq ty 'i1) ty)
    ((eq ty 'i32) ty)
+   ((integerp (first ty))
+    (nth (1+ (first ty)) (satori-type (second ty) tenv)))
    ((case (first ty)
       (structure (let* ((element-types (map 'list
                                             #'(lambda (x)
@@ -245,6 +247,8 @@
    ((eq ty 'void) (llvm:void-type))
    ((eq ty 'i1) (llvm:int1-type))
    ((eq ty 'i32) (llvm:int32-type))
+   ((integerp (first ty))
+    (llvm-type (nth (1+ (first ty)) (satori-type (second ty) tenv)) tenv))
    ((case (first ty)
       (structure (let* ((element-types (map 'list
                                             #'(lambda (x)

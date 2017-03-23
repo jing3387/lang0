@@ -1,6 +1,6 @@
 (in-package :satori)
 
-(prove:plan 7)
+(prove:plan 6)
 
 (llvm:with-objects ((*module* llvm:module "<unknown>")
                     (*builder* llvm:builder)
@@ -16,7 +16,7 @@
   (prove:is (evlis '((1 (let ((x (cons 1 2))) x)))) 2)
 
   ;; Index a structure created inside a lambda.
-  (prove:is (evlis '((1 ((lambda (x) (cons x 2)) 1)))) 1)
+  (prove:is (evlis '((0 ((lambda (x) (cons x 2)) 1)))) 1)
 
   ;; Index a structure passed as an argument then returned.
   (prove:is (evlis '((1 ((lambda (x) x) (cons 1 2))))) 2)

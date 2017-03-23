@@ -1,7 +1,7 @@
 (in-package #:satori)
 
 (defun genericp (type)
-  (find-anywhere 'type-variable type))
+  (and (listp type) (eq (first type) 'lambda) (find-anywhere 'type-variable type)))
 
 (defun definep (x)
   (and (listp x) (= (length x) 3) (eq (first x) 'define)))

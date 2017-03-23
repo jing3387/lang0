@@ -190,7 +190,11 @@
                     (cons-type (first cons-recon))
                     (cons-constr (second cons-recon))
                     (cons-exp (third cons-recon)))
-               `(,(nth (1+ idx) cons-type) ,cons-constr (,idx ,cons-exp))))
+               (case (first cons-type)
+                 (type-variable
+                  `((,idx ,cons-type) ,cons-constr (,idx ,cons-exp)))
+                 (t
+                  `(,(nth (1+ idx) cons-type) ,cons-constr (,idx ,cons-exp))))))
             (t (let* ((f (first x))
                       (xs (rest x))
                       (recon-f (recon f ctx defs))
@@ -212,6 +216,7 @@
     (cond
       ((equal tyS 'i1) 'i1)
       ((equal tyS 'i32) 'i32)
+      ((integerp (first tyS)) tyS)
       ((case (first tyS)
          (structure `(structure ,@(map 'list #'f (rest tyS))))
          (type-variable (let ((s (second tyS)))
