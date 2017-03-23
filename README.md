@@ -17,7 +17,7 @@ The following special forms and functions make up the core language:
 * `define`: for recursion that doesn't rely on the Y-Combinator ✓
 * `cons`: to create new structures ✓
 * `n`, where n is some integer: index into a structure ✓
-* `arity`: get the number of elements in a structure
+* `arity`: get the number of elements in a structure ✓
 * `quote`: to create a symbol
 * `atom`: predicate for atoms, because `n` isn't defined on atoms
 
@@ -38,10 +38,10 @@ graphs. For example:
 ```
 (define list
   (lambda (x)
-    (let ((f (lambda (x i))
+    (let ((f (lambda (x i)
                (if (eq i (arity x))
                    ()
-                   (cons (i x) (list x (add 1 i))))))
+                   (cons (i x) (f x (add 1 i)))))))
       (f x 0))))
 ```
 
@@ -64,3 +64,7 @@ https://en.wikipedia.org/wiki/Cons
 > included for pattern-matching.
 
 http://wiki.c2.com/?NominativeAndStructuralTyping
+
+## Conditionals potentially create a new type
+Conditionals can return different types from each branch which results in a sum
+type being created which is the sum of the types returned from each branch.
