@@ -21,4 +21,5 @@
             :components
             ((:file "util")
              (:test-file "expression")
-             (:test-file "definition")))))
+             (:test-file "definition")
+             (:test-file "cons")))))

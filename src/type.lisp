@@ -179,7 +179,9 @@
                     (element-types (map 'list #'first element-recons))
                     (element-constrs (map 'list #'second element-recons))
                     (element-exps (map 'list #'third element-recons)))
-               `((structure ,@element-types) ,element-constrs (cons% ,element-exps ,element-types))))
+               `((structure ,@element-types)
+                 ,element-constrs
+                 (cons% ,element-exps ,element-types))))
        (t (cond
             ((integerp (first x))
              (let* ((idx (first x))
@@ -211,7 +213,7 @@
       ((equal tyS 'i1) 'i1)
       ((equal tyS 'i32) 'i32)
       ((case (first tyS)
-         (structure tyS)
+         (structure `(structure ,@(map 'list #'f (rest tyS))))
          (type-variable (let ((s (second tyS)))
                           (if (equal s tyX)
                               tyT
