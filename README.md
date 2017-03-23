@@ -18,22 +18,31 @@ The following special forms and functions make up the core language:
 * `cons`: to create new structures ✓
 * `n`, where n is some integer: index into a structure ✓
 * `quote`: to create a symbol
-
-## Macros
-* `map`: apply function to each element in a structure
-* `bind`: destructuring operator
+* `atom`: predicate for atoms, because `n` isn't defined on atoms
 
 In addition to these special forms and functions will be operators defined on
-integers, floating point numbers, characters, strings, pointers and arrays.
+integers, floating point numbers, characters, strings, and arrays.
 
-## Ideas
+## Notes
 
 ### Cons creates a new type
-* Cons creates a new structure, taking multiple arguments
-* Type inference analyses conses and it's expected you'll match on all top-level
-  types
-* Nested conses are pointers to structures, this allows lists, trees and even
-  graphs to be created using the one operator
+Cons creates a new structure, and subsequently type, taking multiple arguments
+to specify the initial value and type for each element. Structural typing means
+that any two conses that have the same element types are equal. Symbols can be
+used to differentiate conses as the type of a symbol is the symbol itself.
+
+Conses can be nested allowing for recursive structures such as lists, trees, and
+graphs. For example:
+
+```
+(define list
+  (lambda (x)
+    (let ((f (lambda (x i))
+               (if (eq i (arity x))
+                   ()
+                   (cons (i x) (list x (add 1 i))))))
+      (f x 0))))
+```
 
 > In computer science, tuples are directly implemented as product types in most
 > functional programming languages. More commonly, they are implemented as

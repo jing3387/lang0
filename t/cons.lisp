@@ -1,6 +1,6 @@
 (in-package :satori)
 
-(prove:plan 6)
+(prove:plan 10)
 
 (llvm:with-objects ((*module* llvm:module "<unknown>")
                     (*builder* llvm:builder)
@@ -22,6 +22,18 @@
   (prove:is (evlis '((1 ((lambda (x) x) (cons 1 2))))) 2)
 
   ;; Index a structure definition.
-  (prove:is (evlis '((define x (cons 1 2)) (1 x))) 2))
+  (prove:is (evlis '((define x (cons 1 2)) (1 x))) 2)
+
+  ;; Get the arity of a simple cons.
+  (prove:is (evlis '((arity (cons 1 2)))) 2)
+
+  ;; Get the arity of a cons passed as argument.
+  (prove:is (evlis '(((lambda (x) (arity x)) (cons 1 2)))) 2)
+
+  ;; Get the arity of a cons bound to a local variable.
+  (prove:is (evlis '((let ((x (cons 1 2))) (arity x)))) 2)
+
+  ;; Get the arity of a cons definition.
+  (prove:is (evlis '((define x (cons 1 2)) (arity x))) 2))
 
 (prove:finalize)

@@ -78,7 +78,14 @@
          `(,(comp-int-op op lhs rhs env tenv) ,env ,tenv)))
       (cons* (let ((elements (second x))
                    (types (third x)))
-               (comp-cons elements types env tenv)))))))
+               (comp-cons elements types env tenv)))
+      (arity* (let ((type (second x)))
+                 (comp-arity type env tenv)))))))
+
+(defun comp-arity (type env tenv)
+  (let* ((type* (satori-type type tenv))
+         (arity (length (rest type*))))
+    `(,(llvm:const-int (llvm:int32-type) arity) ,env ,tenv)))
 
 (defun comp-index (idx cons env tenv)
   (let* ((ccons (first (comp cons env tenv)))

@@ -182,6 +182,12 @@
                `((structure ,@element-types)
                  ,element-constrs
                  (cons% ,element-exps ,element-types))))
+       (arity (let* ((cons (second x))
+                      (cons-recon (recon cons ctx defs))
+                      (cons-type (first cons-recon))
+                      (cons-constr (second cons-recon))
+                      (cons-exp (third cons-recon)))
+                 `(i32 ,cons-constr (arity% ,cons-type))))
        (t (cond
             ((integerp (first x))
              (let* ((idx (first x))
