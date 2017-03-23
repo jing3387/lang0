@@ -138,7 +138,7 @@
                   (false-constr (second false-recon))
                   (false-exp (third false-recon))
                   (new-constr `((,pred-type i1)))
-                  (constr (concatenate 'list new-constr pred-constr true-constr false-constr))
+                  (constr (append new-constr pred-constr true-constr false-constr))
                   (rettype (or (and (not (equal true-type false-type))
                                     `(union ,true-type ,false-type))
                                true-type)))
@@ -177,7 +177,7 @@
                                              (recon x ctx defs))
                                          elements))
                     (element-types (map 'list #'first element-recons))
-                    (element-constrs (map 'list #'second element-recons))
+                    (element-constrs (mappend #'second element-recons))
                     (element-exps (map 'list #'third element-recons)))
                `((structure ,@element-types)
                  ,element-constrs
