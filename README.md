@@ -29,8 +29,8 @@ integers, floating point numbers, characters, strings, and arrays.
 ### Cons creates a new type
 Cons creates a new structure, and subsequently type, taking multiple arguments
 to specify the initial value and type for each element. Structural typing means
-that any two conses that have the same element types are equal. Symbols can be
-used to differentiate conses as the type of a symbol is the symbol itself.
+that any two conses that have the same element types are equal. *Symbols can be
+used to differentiate conses as the type of a symbol is the symbol itself.*
 
 Conses can be nested allowing for recursive structures such as lists, trees, and
 graphs. For example:
@@ -65,6 +65,11 @@ https://en.wikipedia.org/wiki/Cons
 
 http://wiki.c2.com/?NominativeAndStructuralTyping
 
-## Conditionals potentially create a new type
+## Unions are also created implicitly
 Conditionals can return different types from each branch which results in a sum
 type being created which is the sum of the types returned from each branch.
+
+`nth` also creates a union for each of the potential elements that could be
+accessed. This effectively allows for heterogeneous structure by converting a
+`cons` into the desired structure, i.e. creating a constructor based off of
+cons.

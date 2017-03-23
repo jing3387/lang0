@@ -193,11 +193,7 @@
                    (cons-type (first cons-recon))
                    (cons-constr (second cons-recon))
                    (cons-exp (third cons-recon)))
-              (case (first cons-type)
-                (type-variable
-                 `((nth ,idx ,cons-type) ,cons-constr (nth% ,idx ,cons-exp)))
-                (t
-                 `(,(nth (1+ idx) cons-type) ,cons-constr (nth% ,idx ,cons-exp))))))
+              `((nth ,idx ,cons-type) ,cons-constr (nth% ,idx ,cons-exp))))
        (t (let* ((f (first x))
                  (xs (rest x))
                  (recon-f (recon f ctx defs))

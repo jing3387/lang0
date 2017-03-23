@@ -232,7 +232,11 @@
    ((eq ty 'i1) ty)
    ((eq ty 'i32) ty)
    ((case (first ty)
-      (nth (nth (1+ (second ty)) (satori-type (third ty) tenv)))
+      (nth (let* ((idx (second ty))
+                  (struct-type (satori-type (third ty) tenv)))
+             (cond
+               ((integerp idx) (nth (1+ idx) struct-type))
+               ((symbolp idx) `(union ,@(rest struct-type))))))
       (structure (let* ((element-types (map 'list
                                             #'(lambda (x)
                                                 (satori-type x tenv))
@@ -255,7 +259,11 @@
    ((eq ty 'i1) (llvm:int1-type))
    ((eq ty 'i32) (llvm:int32-type))
    ((case (first ty)
-      (nth (llvm-type (nth (1+ (second ty)) (satori-type (third ty) tenv)) tenv))
+      (nth (cond
+             ((integerp (second ty))
+              (llvm-type (nth (1+ (second ty)) (satori-type (third ty) tenv)) tenv))
+             ((symbolp (second ty))
+              (llvm-type (satori-type (third ty) tenv) tenv))))
       (structure (let* ((element-types (map 'list
                                             #'(lambda (x)
                                                 (llvm:pointer-type (llvm-type x tenv)))
