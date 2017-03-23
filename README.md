@@ -17,6 +17,7 @@ The following special forms and functions make up the core language:
 * `define`: for recursion that doesn't rely on the Y-Combinator ✓
 * `cons`: to create new structures ✓
 * `n`, where n is some integer: index into a structure ✓
+* `arity`: get the number of elements in a structure
 * `quote`: to create a symbol
 * `atom`: predicate for atoms, because `n` isn't defined on atoms
 
