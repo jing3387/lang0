@@ -2,17 +2,23 @@
 
 (defun foreign-funcall-ptr (ty main)
   (let ((ptr (llvm:pointer-to-global *execution-engine* main)))
-    (case ty
-      (void
+    (cond
+      ((eq ty 'void)
        (progn
          (if (cffi:pointer-eq main ptr)
              (llvm:run-function *execution-engine* ptr ())
              (cffi:foreign-funcall-pointer ptr () :void))
          nil))
-      (i32
+      ((eq ty 'i32)
        (if (cffi:pointer-eq main ptr)
            (llvm:generic-value-to-int (llvm:run-function *execution-engine* ptr ()) t)
-           (cffi:foreign-funcall-pointer ptr () :int32))))))
+           (cffi:foreign-funcall-pointer ptr () :int32)))
+      ((case (first ty)
+        (symbol
+         (if (cffi:pointer-eq main ptr)
+             (cffi:foreign-string-to-lisp
+              (llvm:generic-value-to-pointer (llvm:run-function *execution-engine* ptr ())))
+             (cffi:foreign-funcall-pointer ptr () :string))))))))
 
 (defun %eval (x env tenv defs)
   (let* ((ctx (remove-if-not #'(lambda (x) (symbolp (first x))) tenv))

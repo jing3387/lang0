@@ -16,10 +16,16 @@ The following special forms and functions make up the core language:
 * `eq`: for testing equality between atoms ✓
 * `define`: for recursion that doesn't rely on the Y-Combinator ✓
 * `cons`: to create new structures ✓
-* `n`, where n is some integer: index into a structure ✓
+* `nth`: index into a structure ✓
 * `arity`: get the number of elements in a structure ✓
-* `quote`: to create a symbol
+* `cast`: access a union in terms of one of its members
+* `quote`: to create literal data
 * `atom`: predicate for atoms, because `n` isn't defined on atoms
+
+## Macros
+* `bind`: destructuring bind, implemented in terms of `let` and `nth`
+* `match`: destructuring bind across a union's cases, implemented in terms of
+  `bind` and `if`
 
 In addition to these special forms and functions will be operators defined on
 integers, floating point numbers, characters, strings, and arrays.
@@ -29,21 +35,11 @@ integers, floating point numbers, characters, strings, and arrays.
 ### Cons creates a new type
 Cons creates a new structure, and subsequently type, taking multiple arguments
 to specify the initial value and type for each element. Structural typing means
-that any two conses that have the same element types are equal. *Symbols can be
-used to differentiate conses as the type of a symbol is the symbol itself.*
+that any two conses that have the same element types are equal. Symbols can be
+used to differentiate conses as the type of a symbol is the symbol itself.
 
 Conses can be nested allowing for recursive structures such as lists, trees, and
-graphs. For example:
-
-```
-(define list
-  (lambda (x)
-    (let ((f (lambda (x i)
-               (if (eq i (arity x))
-                   ()
-                   (cons (i x) (f x (add 1 i)))))))
-      (f x 0))))
-```
+graphs.
 
 > In computer science, tuples are directly implemented as product types in most
 > functional programming languages. More commonly, they are implemented as
@@ -66,10 +62,5 @@ https://en.wikipedia.org/wiki/Cons
 http://wiki.c2.com/?NominativeAndStructuralTyping
 
 ## Unions are also created implicitly
-Conditionals can return different types from each branch which results in a sum
-type being created which is the sum of the types returned from each branch.
-
-`nth` also creates a union for each of the potential elements that could be
-accessed. This effectively allows for heterogeneous structure by converting a
-`cons` into the desired structure, i.e. creating a constructor based off of
-cons.
+Conditionals can return different types from each branch which results in a
+union being created.
