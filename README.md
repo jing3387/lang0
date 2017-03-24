@@ -18,7 +18,7 @@ The following special forms and functions make up the core language:
 * `cons`: to create new structures ✓
 * `nth`: index into a structure ✓
 * `arity`: get the number of elements in a structure ✓
-* `cast`: access a union in terms of one of its members
+* `cast`: type-safe casting of a union to one of its member types
 * `quote`: to create literal data
 * `atom`: predicate for atoms, because `n` isn't defined on atoms
 
@@ -30,16 +30,42 @@ The following special forms and functions make up the core language:
 In addition to these special forms and functions will be operators defined on
 integers, floating point numbers, characters, strings, and arrays.
 
+## Examples
+
+The classic factorial function demonstrating recursion:
+```
+(define factorial
+  (lambda (x)
+    (if (eq x 0)
+        1
+        (mul x (factorial (sub x 1))))))
+```
+
+Compute the length of a list:
+```
+(let ((list (lambda rest
+              (if (not rest)
+                  ()
+                  (cons (nth 0 rest) (list rest)))))
+      (length (lambda (lst)
+                (cast lst
+                  (() 0)
+                  ((_ _) (let ((xs (nth 1 lst)))
+                          (add 1 (length xs))))))))
+  (length (list 1 2 3)))
+```
+
 ## Notes
 
 ### Cons creates a new type
 Cons creates a new structure, and subsequently type, taking multiple arguments
 to specify the initial value and type for each element. Structural typing means
 that any two conses that have the same element types are equal. Symbols can be
-used to differentiate conses as the type of a symbol is the symbol itself.
+used to differentiate conses as symbols evaluate to themselves in the type
+system.
 
-Conses can be nested allowing for recursive structures such as lists, trees, and
-graphs.
+Note: Conses can be nested allowing for recursive structures such as lists,
+trees, and graphs.
 
 > In computer science, tuples are directly implemented as product types in most
 > functional programming languages. More commonly, they are implemented as
@@ -61,6 +87,6 @@ https://en.wikipedia.org/wiki/Cons
 
 http://wiki.c2.com/?NominativeAndStructuralTyping
 
-## Unions are also created implicitly
-Conditionals can return different types from each branch which results in a
-union being created.
+## Branches create a new type
+Conditionals, casts and anything that has multiple cases can return different
+types from each branch which results in a union being created.

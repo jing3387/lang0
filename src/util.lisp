@@ -1,14 +1,5 @@
 (in-package #:satori)
 
-(defun isval (x)
-  (cond
-    ((integerp x) t)
-    ((and (listp x)
-          (case (first x)
-            (lambda t)
-            (lambda% t))))
-    (t nil)))
-
 (defun find-anywhere (item tree)
   (cond ((eql item tree) tree)
         ((atom tree) nil)
@@ -38,3 +29,20 @@
 (defun remove-nil (x)
   (cond ((listp x) (map 'list #'remove-nil (remove nil x)))
         (t x)))
+
+(defmacro aif (test &optional then else)
+  (let ((win (gensym)))
+    `(multiple-value-bind (it ,win) ,test
+       (if (or it ,win) ,then ,else))))
+
+(defmacro acond (&rest clauses)
+  (if (null clauses)
+      nil
+      (let ((cl1 (car clauses))
+            (val (gensym))
+            (win (gensym)))
+        `(multiple-value-bind (,val ,win) ,(car cl1)
+           (if (or ,val ,win)
+               (let ((it ,val))
+                 ,@(cdr cl1))
+               (acond ,@(cdr clauses)))))))

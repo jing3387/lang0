@@ -200,6 +200,32 @@
                      (expansion (expand-quote const))
                      (type (type-quote expansion)))
                 `(,type nil (quote% ,expansion ,type))))
+       (cast (let* ((union (second x))
+                    (union-recon (recon union ctx defs))
+                    (union-type (first union-recon))
+                    (union-constrs (second union-recon))
+                    (union-exp (third union-recon))
+                    (clauses (rest (rest x)))
+                    (types (map 'list #'first clauses))
+                    (expanded-types (map 'list #'expand-type types))
+                    (type-members (remove-duplicates expanded-types :test #'equal))
+                    (type-union (if (= (length type-members) 1)
+                                    (first type-members)
+                                    `(union ,@type-members)))
+                    (type-syms (wildcards-to-type-variable type-union))
+                    (type-constrs `((,type-syms ,union-type)))
+                    (bodies (map 'list #'second clauses))
+                    (body-recons (map 'list #'(lambda (x) (recon x ctx defs)) bodies))
+                    (body-types (map 'list #'first body-recons))
+                    (body-members (remove-duplicates body-types :test #'equal))
+                    (body-constrs (map 'list #'second body-recons))
+                    (body-exps (map 'list #'third body-recons))
+                    (clauses* (map 'list #'list expanded-types body-exps))
+                    (rettype (if (= (length body-members) 1)
+                                 (first body-members)
+                                 `(union ,@body-members)))
+                    (constrs (append type-constrs union-constrs body-constrs)))
+               `(,rettype ,constrs (cast% (,union-exp ,union-type) ,clauses*))))
        (t (let* ((f (first x))
                  (xs (rest x))
                  (recon-f (recon f ctx defs))
@@ -216,11 +242,21 @@
                  (constr (append new-constr constr-f constr-xs)))
             `(,type-ret ,constr (,exp-f ,@exp-xs))))))))
 
+(defun wildcards-to-type-variable (x)
+  (cond ((eq x '*) `(type-variable ,(gensym)))
+        ((atom x) x)
+        (t (cons (wildcards-to-type-variable (first x))
+                 (wildcards-to-type-variable (rest x))))))
+
+(defun expand-type (ty)
+  (cond ((listp ty) `(structure ,@(map 'list #'expand-type ty)))
+        ((symbolp ty) ty)))
+
 (defun type-quote (x)
   (cond ((integerp x) `(i32 ,x))
-        ((symbolp x) `(symbol ,x))
-        ((and (listp x) (eq (first x) 'cons))
-         `(structure ,@(map 'list #'type-quote (rest x))))))
+        ((and (listp x))
+         `(structure ,@(map 'list #'type-quote (rest x))))
+        ((symbolp x) `(symbol ,x))))
 
 (defun expand-quote (x)
   (cond ((atom x) x)
@@ -228,6 +264,15 @@
 
 (defun lambdap (x)
   (and (listp x) (eq (first x) 'lambda)))
+
+(defun isval (x)
+  (cond
+    ((integerp x) t)
+    ((and (listp x)
+          (case (first x)
+
+            (lambda% t))))
+    (t nil)))
 
 (defun subst-type (tyX tyT tyS)
   (defun f (tyS)
@@ -276,6 +321,17 @@
                    (or (o tyT1) (o tyT2))))))))
   (o tyT))
 
+(defun gensymp (x)
+  (and (symbolp x) (null (symbol-package x))))
+
+(defun unify-match (x y)
+  (cond
+    ((or (eql x y)
+         (and (listp x) (eq (first x) 'type-variable) (gensymp (second x)))) t)
+    ((and (consp x) (consp y) (unify-match (car x) (car y)))
+     (unify-match (cdr x) (cdr y)))
+    (t nil)))
+
 (defun unify (constr)
   (defun u (constr)
     (let ((fst (first (first constr)))
@@ -318,6 +374,7 @@
                                          tyS1
                                          tyT1)))
                       (u `(,@type-1s (,tyS2 ,tyT2) ,@(rest constr))))))))
+        ((unify-match fst snd) (u (rest constr)))
         (t (error 'satori-error :message "unsolvable constraints")))))
   (u (remove-nil constr)))
 
