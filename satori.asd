@@ -1,8 +1,9 @@
 (asdf:defsystem #:satori
-  :description "Yet another Lisp on LLVM"
+  :description "Satori is a statically-typed, functional Lisp running on LLVM"
   :author "Jarrod Jeffrey Ingram <jarrod.jeffi@gmail.com>"
   :license "BSD-3-Clause"
   :depends-on (:alexandria :llvm :prove)
+  :serial t
   :components
   ((:module "src"
             :serial t
@@ -24,4 +25,5 @@
              (:file "expression")
              (:file "definition")
              (:file "cons")
-             (:file "cast")))))
+             (:file "cast")
+             (:file "test")))))

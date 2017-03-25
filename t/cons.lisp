@@ -1,10 +1,7 @@
 (in-package :satori)
 
-(prove:plan 10)
-
-(llvm:with-objects ((*module* llvm:module "<unknown>")
-                    (*builder* llvm:builder)
-                    (*execution-engine* llvm:execution-engine *module*))
+(defun cons-test ()
+  (prove:plan 10)
 
   ;; Index a structure.
   (prove:is (evlis '((nth 0 (cons 0 1)))) 0)
@@ -34,6 +31,6 @@
   (prove:is (evlis '((let ((x (cons 1 2))) (arity x)))) 2)
 
   ;; Get the arity of a cons definition.
-  (prove:is (evlis '((define x (cons 1 2)) (arity x))) 2))
+  (prove:is (evlis '((define x (cons 1 2)) (arity x))) 2)
 
-(prove:finalize)
+  (prove:finalize))

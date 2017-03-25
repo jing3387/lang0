@@ -1,10 +1,8 @@
 (in-package #:satori)
 
-(prove:plan 22)
+(defun expression-test ()
+  (prove:plan 22)
 
-(llvm:with-objects ((*module* llvm:module "<unknown>")
-                    (*builder* llvm:builder)
-                    (*execution-engine* llvm:execution-engine *module*))
   ;; Constant maps to a constant.
   (prove:is (evlis '(0)) 0)
 
@@ -109,6 +107,6 @@
                                         (if (eq x 1)
                                             1
                                             (mul x (factorial (sub x 1)))))))
-                       (factorial 5)))) 120))
+                       (factorial 5)))) 120)
 
-(prove:finalize)
+  (prove:finalize))

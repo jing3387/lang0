@@ -128,31 +128,23 @@
                       (tenv* `((,variable ,type*) . ,tenv))
                       (cbody (first (comp body env* tenv*))))
                  (if (unionp rettype)
-                     (let* ((rettype-tag-indices (vector (llvm:const-int (llvm:int32-type)
-                                                                         0)
-                                                         (llvm:const-int (llvm:int32-type)
-                                                                         0)))
+                     (let* ((rettype-tag-indices (vector (llvm:const-int (llvm:int32-type) 0)
+                                                         (llvm:const-int (llvm:int32-type) 0)))
                             (rettype-tag-ptr (llvm:build-gep *builder* rettype-ptr
                                                              rettype-tag-indices "")))
                        (multiple-value-bind (rettype-tag in-table) (gethash rettype *types*)
                          (if in-table
                              (llvm:build-store *builder*
-                                               (llvm:const-int (llvm:int32-type)
-                                                               rettype-tag)
+                                               (llvm:const-int (llvm:int32-type) rettype-tag)
                                                rettype-tag-ptr)
                              (let ((new-tag *next-serial*))
                                (llvm:build-store *builder*
-                                                 (llvm:const-int (llvm:int32-type) new-tag)
-                                                 rettype-tag-ptr)
+                                                 (llvm:const-int (llvm:int32-type) new-tag) rettype-tag-ptr)
                                (setf *next-serial* (1+ *next-serial*))))
-                         (let* ((new-data-mem (llvm:build-malloc *builder*
-                                                                 (llvm:type-of cbody)
-                                                                 "")))
+                         (let* ((new-data-mem (llvm:build-malloc *builder* (llvm:type-of cbody) "")))
                            (llvm:build-store *builder* cbody new-data-mem)
                            (let* ((dest-ty (llvm:pointer-type (llvm:struct-type #() nil)))
-                                  (bit-cast (llvm:build-bit-cast *builder*
-                                                                 new-data-mem
-                                                                 dest-ty "")))
+                                  (bit-cast (llvm:build-bit-cast *builder* new-data-mem dest-ty "")))
                              (llvm:build-store *builder* bit-cast rettype-data-ptr)
                              (llvm:build-store *builder* rettype-ptr retptr)))))
                      (llvm:build-store *builder* cbody retptr))

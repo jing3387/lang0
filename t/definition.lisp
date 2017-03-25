@@ -1,10 +1,7 @@
 (in-package #:satori)
 
-(prove:plan 5)
-
-(llvm:with-objects ((*module* llvm:module "<unknown>")
-                    (*builder* llvm:builder)
-                    (*execution-engine* llvm:execution-engine *module*))
+(defun definition-test ()
+  (prove:plan 5)
 
   ;; Constant definition.
   (prove:is (satori:evlis '((define x 0) x)) 0)
@@ -32,6 +29,6 @@
                         (if (eq x 1)
                             1
                             (mul x (factorial (sub x 1))))))
-                     (factorial 5))) 120))
+                     (factorial 5))) 120)
 
-(prove:finalize)
+  (prove:finalize))
