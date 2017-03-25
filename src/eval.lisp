@@ -47,7 +47,6 @@
             (if (cffi:pointer-eq retty (llvm:void-type))
                 (llvm:build-ret *builder*)
                 (llvm:build-ret *builder* (first x*)))
-            (llvm:dump-module *module*)
             (llvm:verify-module *module*)
             (let* ((result (foreign-funcall-ptr type main)))
               `(,result ,env** ,tenv** ,defs)))))))

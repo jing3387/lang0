@@ -5,6 +5,7 @@
   :depends-on (:alexandria :llvm :prove)
   :components
   ((:module "src"
+            :serial t
             :components
             ((:file "package")
              (:file "util")
@@ -16,9 +17,11 @@
              (:file "eval")
              (:file "satori")))
    (:module "t"
+            :serial t
             :depends-on ("src")
             :components
             ((:file "util")
              (:file "expression")
              (:file "definition")
-             (:file "cons")))))
+             (:file "cons")
+             (:file "cast")))))

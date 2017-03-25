@@ -202,7 +202,7 @@
                     (union-constrs (second union-recon))
                     (union-exp (third union-recon))
                     (variable (third x))
-                    (clauses (rest (rest (rest x))))
+                    (clauses (fourth x))
                     (types (map 'list #'first clauses))
                     (expanded-types (map 'list #'expand-type types))
                     (type-members (type-matches expanded-types members))
@@ -239,7 +239,7 @@
                (unless type-members
                  (error 'satori-error :message "non-exhaustive cast"))
                `(,rettype ,constrs (cast% ,rettype (,union-exp ,union-type) ,variable
-                                          ,@clauses*))))
+                                          (,@clauses*)))))
        (t (let* ((f (first x))
                  (xs (rest x))
                  (recon-f (recon f ctx defs))
