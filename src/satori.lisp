@@ -4,6 +4,10 @@
 (defvar *module*)
 (defvar *execution-engine*)
 
+;; For uniquely identifying types
+(defvar *next-serial*)
+(defvar *types*)
+
 (define-condition satori-error (error)
   ((message :initarg :message :reader message))
   (:report (lambda (condition stream)
@@ -17,6 +21,8 @@
     (let ((env nil)
           (tenv nil)
           (defs nil))
+      (setf *next-serial* 0
+            *types* (make-hash-table :test #'equal))
       (loop for x = (read *standard-input* nil 'eof nil)
             while (not (equal x 'eof)) do
               (let ((result (%eval x env tenv defs)))

@@ -48,7 +48,7 @@ Compute the length of a list:
                   ()
                   (cons (nth 0 rest) (list rest)))))
       (length (lambda (lst)
-                (cast lst
+                (cast lst lst
                   (() 0)
                   ((_ _) (let ((xs (nth 1 lst)))
                           (add 1 (length xs))))))))

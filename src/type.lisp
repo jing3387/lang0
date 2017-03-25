@@ -198,29 +198,48 @@
        (cast (let* ((union (second x))
                     (union-recon (recon union ctx defs))
                     (union-type (first union-recon))
+                    (members (rest union-type))
                     (union-constrs (second union-recon))
                     (union-exp (third union-recon))
-                    (clauses (rest (rest x)))
+                    (variable (third x))
+                    (clauses (rest (rest (rest x))))
                     (types (map 'list #'first clauses))
                     (expanded-types (map 'list #'expand-type types))
-                    (type-members (remove-duplicates expanded-types :test #'equal))
-                    (type-union (if (= (length type-members) 1)
-                                    (first type-members)
-                                    `(union ,@type-members)))
-                    (type-syms (wildcards-to-type-variable type-union))
-                    (type-constrs `((,type-syms ,union-type)))
+                    (type-members (type-matches expanded-types members))
+                    (tags (map 'list
+                               #'(lambda (type)
+                                   (multiple-value-bind (tag in-table) (gethash type *types*)
+                                     (if in-table
+                                         tag
+                                         (let ((tag *next-serial*))
+                                           (setf (gethash type *types*) tag
+                                                 *next-serial* (1+ *next-serial*))
+                                           tag))))
+                               type-members))
+                    (tagged-types (map 'list #'list tags type-members))
                     (bodies (map 'list #'second clauses))
-                    (body-recons (map 'list #'(lambda (x) (recon x ctx defs)) bodies))
+                    (body-recons (map 'list
+                                      #'(lambda (type body)
+                                          (let* ((ctx* `((,variable ,type) . ,ctx))
+                                                 (body-recon (recon body ctx* defs))
+                                                 (body-type (first body-recon))
+                                                 (body-constrs (second body-recon))
+                                                 (body-exp (third body-recon)))
+                                            `(,body-type ,body-constrs ,body-exp)))
+                                        type-members bodies))
                     (body-types (map 'list #'first body-recons))
                     (body-members (remove-duplicates body-types :test #'equal))
                     (body-constrs (map 'list #'second body-recons))
                     (body-exps (map 'list #'third body-recons))
-                    (clauses* (map 'list #'list expanded-types body-exps))
+                    (clauses* (map 'list #'list tagged-types body-exps))
                     (rettype (if (= (length body-members) 1)
                                  (first body-members)
                                  `(union ,@body-members)))
-                    (constrs (append type-constrs union-constrs body-constrs)))
-               `(,rettype ,constrs (cast% (,union-exp ,union-type) ,@clauses*))))
+                    (constrs (append union-constrs body-constrs)))
+               (unless type-members
+                 (error 'satori-error :message "non-exhaustive cast"))
+               `(,rettype ,constrs (cast% ,rettype (,union-exp ,union-type) ,variable
+                                          ,@clauses*))))
        (t (let* ((f (first x))
                  (xs (rest x))
                  (recon-f (recon f ctx defs))
@@ -236,6 +255,23 @@
                  (new-constr `((,type-f (lambda ,type-xs ,type-ret))))
                  (constr (append new-constr constr-f constr-xs)))
             `(,type-ret ,constr (,exp-f ,@exp-xs))))))))
+
+(defun type-match (x y)
+  (cond
+    ((or (eql x y) (eq x '*)) t)
+    ((and (consp x) (consp y) (type-match (car x) (car y)))
+     (type-match (cdr x) (cdr y)))
+    (t nil)))
+
+(defun type-matches (types members)
+  (let ((matches (remove-duplicates
+                  (loop for type in types
+                        append (loop for member in members
+                                     when (type-match type member)
+                                       collect member))
+                  :test #'equal)))
+    (when (null (set-difference members matches))
+      matches)))
 
 (defun wildcards-to-type-variable (x)
   (cond ((eq x '*) `(type-variable ,(gensym)))

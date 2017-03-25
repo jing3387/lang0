@@ -4,6 +4,8 @@
       prove:*default-reporter* :dot)
 
 (defun evlis (xs)
+  (setf *next-serial* 0
+        *types* (make-hash-table :test #'equal))
   (cond ((null xs) nil)
         (t (car (reduce
                  #'(lambda (ctx x)
