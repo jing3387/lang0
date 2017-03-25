@@ -284,10 +284,10 @@
         ((symbolp ty) ty)))
 
 (defun type-quote (x)
-  (cond ((integerp x) `(i32 ,x))
+  (cond ((integerp x) 'i32)
         ((and (listp x))
          `(structure ,@(map 'list #'type-quote (rest x))))
-        ((symbolp x) `(symbol ,x))))
+        ((symbolp x) x)))
 
 (defun expand-quote (x)
   (cond ((atom x) x)
