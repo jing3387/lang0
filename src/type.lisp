@@ -8,11 +8,8 @@
     ((integerp x) `(i32 nil (i32 ,x)))
     ((symbolp x) (cond
                    ((assoc x ctx)
-                    (let* ((type (unwrap (rest (assoc x ctx))))
-                           (type* (or (and (listp type) (not (symbolp (first type)))
-                                           (flatten type))
-                                      type)))
-                      `(,type* nil (variable ,x ,type*))))
+                    (let* ((type (second (assoc x ctx))))
+                      `(,type nil (variable ,x ,type))))
                    (t (error 'unknown-variable-name :argument x))))
     ((case (first x)
        (lambda (let ((params `(,(gensym) . ,(second x)))
@@ -23,9 +20,9 @@
                                           (make-list (length param-syms)
                                                      :initial-element 'type-variable)
                                           param-syms))
-                        (callee `(%callee . (lambda ,param-types
-                                              (type-variable ,(gensym "T")))))
-                        (ctx* (append (pairlis params param-types) ctx))
+                        (callee `(%callee (lambda ,param-types
+                                            (type-variable ,(gensym "T")))))
+                        (ctx* (append (map 'list #'list params param-types) ctx))
                         (ctx** (or (and (find-anywhere '%callee body)
                                         `(,callee . ,ctx*))
                                    ctx*))
@@ -44,14 +41,14 @@
                         (body* (map 'list #'third body-recon))
                         (free-vars (free x))
                         (lam `(lambda ,param-types ,body-type))
-                        (new-constr `((,lam ,(cdr callee))))
+                        (new-constr `((,lam ,(second callee))))
                         (constr (append new-constr body-constr)))
                    `(,lam
                      ((,(first param-types)
                        (structure
                         ,@(map 'list
                                #'(lambda (fv)
-                                   (rest (assoc fv ctx*)))
+                                   (second (assoc fv ctx*)))
                                (set-difference free-vars defs))))
                       . ,constr)
                      (lambda% ,params* ,body-type ,@body*)))))
@@ -87,8 +84,7 @@
                                        (setf annotated-bindings
                                              `(((variable ,var ,exp-type) ,exp*)
                                                . ,annotated-bindings))
-                                       (setf binding-constr `(,constr1
-                                                              . ,binding-constr))
+                                       (setf binding-constr `(,constr1 . ,binding-constr))
                                        `((,var ,exp-type) . ,ctx))
                                      ctx)))
                            (map 'list #'list vars exps**)
@@ -112,8 +108,7 @@
                                                    :initial-element 'type-variable)
                                         param-syms))
                       (retty `(type-variable ,(gensym "T")))
-                      (ctx* (or (and rec `((,name . (lambda ,param-types ,retty))
-                                           . ,ctx))
+                      (ctx* (or (and rec `((,name (lambda ,param-types ,retty)) . ,ctx))
                                 ctx))
                       (exp-recon (recon (third x) ctx* `(,name . ,defs)))
                       (exp-type (first exp-recon))
@@ -225,7 +220,7 @@
                                  (first body-members)
                                  `(union ,@body-members)))
                     (constrs (append type-constrs union-constrs body-constrs)))
-               `(,rettype ,constrs (cast% (,union-exp ,union-type) ,clauses*))))
+               `(,rettype ,constrs (cast% (,union-exp ,union-type) ,@clauses*))))
        (t (let* ((f (first x))
                  (xs (rest x))
                  (recon-f (recon f ctx defs))
@@ -270,7 +265,7 @@
     ((integerp x) t)
     ((and (listp x)
           (case (first x)
-
+            (lambda t)
             (lambda% t))))
     (t nil)))
 

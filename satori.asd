@@ -2,7 +2,6 @@
   :description "Yet another Lisp on LLVM"
   :author "Jarrod Jeffrey Ingram <jarrod.jeffi@gmail.com>"
   :license "BSD-3-Clause"
-  :defsystem-depends-on (:prove-asdf)
   :depends-on (:alexandria :llvm :prove)
   :components
   ((:module "src"
@@ -20,6 +19,6 @@
             :depends-on ("src")
             :components
             ((:file "util")
-             (:test-file "expression")
-             (:test-file "definition")
-             (:test-file "cons")))))
+             (:file "expression")
+             (:file "definition")
+             (:file "cons")))))

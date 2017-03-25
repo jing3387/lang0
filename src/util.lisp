@@ -46,3 +46,10 @@
                (let ((it ,val))
                  ,@(cdr cl1))
                (acond ,@(cdr clauses)))))))
+
+(defun structurep (x)
+  (and (listp x) (eq (first x) 'structure)))
+
+(defun unionp (x)
+  (and (listp x) (eq (first x) 'union)))
+
